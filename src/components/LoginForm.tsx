@@ -9,9 +9,10 @@ import { api, ApiError } from '@/lib/api'
 
 interface LoginFormProps {
   onLoginSuccess: () => void
+  onDemoMode: () => void
 }
 
-export function LoginForm({ onLoginSuccess }: LoginFormProps) {
+export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -107,11 +108,30 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           >
             {isLoading ? 'Connecting...' : 'Connect to Emporia Vue'}
           </Button>
+          
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or</span>
+            </div>
+          </div>
+          
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={onDemoMode}
+            disabled={isLoading}
+          >
+            View Demo
+          </Button>
         </form>
 
         <div className="mt-6 text-center text-xs text-muted-foreground">
-          <p>Your credentials are securely transmitted to the backend server.</p>
-          <p className="mt-2">Make sure your Python backend server is running.</p>
+          <p>Demo mode lets you explore with simulated data.</p>
+          <p className="mt-2">Connect to see your real Emporia Vue energy data.</p>
         </div>
       </Card>
     </div>

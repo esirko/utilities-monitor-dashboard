@@ -18,6 +18,7 @@ type DataMode = 'demo' | 'real'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated())
+  const [isDemoMode, setIsDemoMode] = useState(false)
   const [dataMode, setDataMode] = useState<DataMode>('demo')
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const timeRange = TIME_RANGES[selectedRange]
@@ -57,16 +58,23 @@ function App() {
   const handleLogout = () => {
     api.logout()
     setIsAuthenticated(false)
+    setIsDemoMode(false)
     setDataMode('demo')
   }
   
   const handleLoginSuccess = () => {
     setIsAuthenticated(true)
+    setIsDemoMode(false)
     setDataMode('real')
   }
   
-  if (!isAuthenticated) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} />
+  const handleDemoMode = () => {
+    setIsDemoMode(true)
+    setDataMode('demo')
+  }
+  
+  if (!isAuthenticated && !isDemoMode) {
+    return <LoginForm onLoginSuccess={handleLoginSuccess} onDemoMode={handleDemoMode} />
   }
   
   return (
@@ -82,23 +90,25 @@ function App() {
                 Energy Monitor
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Real-time power consumption tracking
+                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking'}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
-            >
-              <Database className="w-4 h-4 mr-2" />
-              {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
-            </Button>
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
+              >
+                <Database className="w-4 h-4 mr-2" />
+                {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <SignOut className="w-4 h-4 mr-2" />
-              Logout
+              {isDemoMode ? 'Exit Demo' : 'Logout'}
             </Button>
           </div>
         </header>
