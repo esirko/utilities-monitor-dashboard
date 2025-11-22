@@ -8,7 +8,7 @@ Installation:
 
 Configuration (Environment Variables):
     BACKEND_HOST    - Host to bind to (default: 0.0.0.0)
-    BACKEND_PORT    - Port to listen on (default: 5000)
+    BACKEND_PORT    - Port to listen on (default: 5001)
     BACKEND_DEBUG   - Enable debug mode (default: true)
     SECRET_KEY      - JWT secret key (default: 'your-secret-key-change-this-in-production')
 
@@ -406,7 +406,7 @@ def health():
 if __name__ == '__main__':
     # Read host and port from environment variables
     host = os.environ.get('BACKEND_HOST', '0.0.0.0')
-    port = int(os.environ.get('BACKEND_PORT', '5000'))
+    port = int(os.environ.get('BACKEND_PORT', '5001'))
     debug = os.environ.get('BACKEND_DEBUG', 'true').lower() == 'true'
     
     print("=" * 60)
