@@ -122,23 +122,44 @@ def log_emporia_request(method_name, **params):
     return redacted_params
 
 def log_emporia_response(method_name, response):
-    """Log Emporia API responses"""
+    """Log Emporia API responses with detailed object introspection"""
+    
+    def object_to_dict(obj):
+        """Convert an object to a dictionary representation by introspecting its attributes"""
+        if obj is None:
+            return None
+        elif isinstance(obj, (str, int, float, bool)):
+            return obj
+        elif isinstance(obj, dict):
+            return {k: object_to_dict(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [object_to_dict(item) for item in obj]
+        elif hasattr(obj, '__dict__'):
+            # Object with attributes - convert to dict
+            result = {}
+            for key, value in obj.__dict__.items():
+                if not key.startswith('_'):  # Skip private attributes
+                    result[key] = object_to_dict(value)
+            return result
+        else:
+            # Fallback to string representation
+            return str(obj)
+    
     try:
-        # Try to format the response nicely
+        # Convert response to a JSON-serializable structure
         if response is None:
             response_str = "None"
         elif isinstance(response, (list, dict)):
             response_str = json.dumps(response, indent=2, default=str)
-        elif isinstance(response, str):
-            response_str = response
-        else:
-            # For objects, try to get useful string representation
+        elif isinstance(response, (str, int, float, bool)):
             response_str = str(response)
-            # If it's a list of objects, show count and first few items
-            if isinstance(response, list):
-                response_str = f"List[{len(response)} items]: {[str(item) for item in response[:3]]}"
+        else:
+            # For custom objects, introspect and show attributes
+            converted = object_to_dict(response)
+            response_str = json.dumps(converted, indent=2, default=str)
         
-        print(f"[Emporia API] RESPONSE < {method_name}: {response_str}")
+        print(f"[Emporia API] RESPONSE < {method_name}:")
+        print(response_str)
     except Exception as e:
         print(f"[Emporia API] RESPONSE < {method_name}: <unable to serialize: {str(e)}>")
 
