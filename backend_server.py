@@ -192,7 +192,7 @@ def login():
             # Generate JWT token
             token = jwt.encode({
                 'username': username,
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+                'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
             }, SECRET_KEY, algorithm='HS256')
             
             return jsonify({
@@ -271,7 +271,7 @@ def get_realtime():
         device_gids = [d.device_gid for d in devices]
         
         # Fetch usage data for the last second
-        instant = datetime.datetime.utcnow()
+        instant = datetime.datetime.now(datetime.UTC)
         log_emporia_request('vue.get_device_list_usage', 
                           deviceGids=device_gids,
                           instant=instant.isoformat(),
@@ -315,7 +315,7 @@ def get_realtime():
                             devices_data[f"{gid}-{channel_num}"] = round(channel_watts, 2)
         
         return jsonify({
-            'timestamp': int(datetime.datetime.utcnow().timestamp() * 1000),
+            'timestamp': int(datetime.datetime.now(datetime.UTC).timestamp() * 1000),
             'total': round(total_watts, 2),
             'devices': devices_data
         })
@@ -350,7 +350,7 @@ def get_history():
         
         # Generate data points for the requested time range
         data_points = []
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         
         # For simplicity, fetch recent usage and extrapolate
         # In production, you'd want to use vue.get_chart_usage() for actual historical data
@@ -401,7 +401,7 @@ def root():
         'status': 'up',
         'authenticated': authenticated,
         'username': credentials_username if authenticated else None,
-        'timestamp': datetime.datetime.utcnow().isoformat()
+        'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
     })
 
 @app.route('/health', methods=['GET'])
@@ -411,7 +411,7 @@ def health():
         'status': 'healthy',
         'authenticated': authenticated,
         'username': credentials_username if authenticated else None,
-        'timestamp': datetime.datetime.utcnow().isoformat()
+        'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
     })
 
 if __name__ == '__main__':
