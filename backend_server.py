@@ -117,7 +117,7 @@ def log_emporia_request(method_name, **params):
     # Format parameters nicely
     params_str = ', '.join(f'{k}={v}' for k, v in redacted_params.items())
     
-    print(f"[Emporia API] {method_name}({params_str})")
+    print(f"[Emporia API] REQUEST  > {method_name}({params_str})")
     
     return redacted_params
 
@@ -138,9 +138,9 @@ def log_emporia_response(method_name, response):
             if isinstance(response, list):
                 response_str = f"List[{len(response)} items]: {[str(item) for item in response[:3]]}"
         
-        print(f"[Emporia API] {method_name} response: {response_str}")
+        print(f"[Emporia API] < RESPONSE {method_name}: {response_str}")
     except Exception as e:
-        print(f"[Emporia API] {method_name} response: <unable to serialize: {str(e)}>")
+        print(f"[Emporia API] < RESPONSE {method_name}: <unable to serialize: {str(e)}>")
 
 # Authentication decorator
 def token_required(f):
