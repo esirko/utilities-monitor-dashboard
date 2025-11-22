@@ -8,9 +8,27 @@ npm install
 ```
 
 ### Backend (Python)
+
+First, create and activate a virtual environment to keep dependencies scoped to this project:
+
+**On macOS/Linux:**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**On Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+Then install the required packages:
 ```bash
 pip install -r requirements.txt
 ```
+
+> **Note:** You'll need to activate the virtual environment (using the `source` or `venv\Scripts\activate` command) each time you open a new terminal before running the backend server.
 
 ## Step 2: Configure Environment
 
