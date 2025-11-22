@@ -31,6 +31,20 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
     const devices = energySimulator.getDevices()
     const deviceIds = devices.map(d => d.id)
     
+    const expectedInterval = 1000
+    const gapThreshold = expectedInterval * 2
+    
+    const gaps: Array<{ start: number; end: number }> = []
+    for (let i = 1; i < data.length; i++) {
+      const timeDiff = data[i].timestamp - data[i - 1].timestamp
+      if (timeDiff > gapThreshold) {
+        gaps.push({
+          start: data[i - 1].timestamp,
+          end: data[i].timestamp
+        })
+      }
+    }
+    
     const xScale = d3.scaleLinear()
       .domain([data[0].timestamp, data[data.length - 1].timestamp])
       .range([0, innerWidth])
@@ -81,6 +95,13 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .y0(d => yScale(d[0]))
       .y1(d => yScale(d[1]))
       .curve(d3.curveMonotoneX)
+      .defined((d, i) => {
+        if (i === 0) return true
+        const prevTimestamp = data[i - 1]?.timestamp
+        const currTimestamp = d.data.timestamp
+        const timeDiff = currTimestamp - prevTimestamp
+        return timeDiff <= gapThreshold
+      })
     
     const areaGroups = g
       .selectAll('.area-group')
@@ -95,6 +116,35 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .attr('opacity', 0.7)
       .attr('stroke', d => colorScale(d.key))
       .attr('stroke-width', 1.5)
+    
+    gaps.forEach(gap => {
+      const x1 = xScale(gap.start)
+      const x2 = xScale(gap.end)
+      
+      g.append('rect')
+        .attr('x', x1)
+        .attr('y', 0)
+        .attr('width', x2 - x1)
+        .attr('height', innerHeight)
+        .attr('fill', 'oklch(0.40 0.04 240)')
+        .attr('opacity', 0.3)
+        .attr('stroke', 'oklch(0.60 0.10 240)')
+        .attr('stroke-width', 1)
+        .attr('stroke-dasharray', '4,4')
+      
+      const textX = (x1 + x2) / 2
+      const textY = innerHeight / 2
+      
+      g.append('text')
+        .attr('x', textX)
+        .attr('y', textY)
+        .attr('text-anchor', 'middle')
+        .attr('fill', 'oklch(0.70 0.08 240)')
+        .attr('font-family', 'JetBrains Mono')
+        .attr('font-size', '11px')
+        .attr('font-weight', '500')
+        .text('Missing Data')
+    })
     
     const xAxis = d3.axisBottom(xScale)
       .ticks(5)

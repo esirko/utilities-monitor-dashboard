@@ -3,7 +3,7 @@ import { DataPoint, TimeRange } from '@/lib/types'
 import { energySimulator } from '@/lib/energySimulator'
 import { api, ApiError } from '@/lib/api'
 
-export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = true) {
+export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = true, isPaused: boolean = false) {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [error, setError] = useState<string | null>(null)
   const startTimeRef = useRef(Date.now())
@@ -24,15 +24,17 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
       
       const maxPoints = timeRange.seconds
       
-      intervalRef.current = window.setInterval(() => {
-        const now = Date.now()
-        const newPoint = energySimulator.generateDataPoint(now)
-        
-        setDataPoints(prev => {
-          const updated = [...prev, newPoint]
-          return updated.slice(-maxPoints)
-        })
-      }, timeRange.updateInterval)
+      if (!isPaused) {
+        intervalRef.current = window.setInterval(() => {
+          const now = Date.now()
+          const newPoint = energySimulator.generateDataPoint(now)
+          
+          setDataPoints(prev => {
+            const updated = [...prev, newPoint]
+            return updated.slice(-maxPoints)
+          })
+        }, timeRange.updateInterval)
+      }
       
       return () => {
         if (intervalRef.current) {
@@ -80,16 +82,18 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
       }
     }
     
-    intervalRef.current = window.setInterval(() => {
-      fetchRealtimeData()
-    }, timeRange.updateInterval)
+    if (!isPaused) {
+      intervalRef.current = window.setInterval(() => {
+        fetchRealtimeData()
+      }, timeRange.updateInterval)
+    }
     
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
     }
-  }, [timeRange, useRealData])
+  }, [timeRange, useRealData, isPaused])
   
   return { dataPoints, error }
 }

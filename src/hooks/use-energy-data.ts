@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { DataPoint, TimeRange } from '@/lib/types'
 import { energySimulator } from '@/lib/energySimulator'
 
-export function useEnergyData(timeRange: TimeRange) {
+export function useEnergyData(timeRange: TimeRange, isPaused: boolean = false) {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const startTimeRef = useRef(Date.now())
   const animationFrameRef = useRef<number | undefined>(undefined)
@@ -22,18 +22,20 @@ export function useEnergyData(timeRange: TimeRange) {
     const maxPoints = timeRange.seconds
     
     const update = () => {
-      const now = Date.now()
-      const timeSinceLastUpdate = now - lastUpdateRef.current
-      
-      if (timeSinceLastUpdate >= timeRange.updateInterval) {
-        lastUpdateRef.current = now
+      if (!isPaused) {
+        const now = Date.now()
+        const timeSinceLastUpdate = now - lastUpdateRef.current
         
-        const newPoint = energySimulator.generateDataPoint(now)
-        
-        setDataPoints(prev => {
-          const updated = [...prev, newPoint]
-          return updated.slice(-maxPoints)
-        })
+        if (timeSinceLastUpdate >= timeRange.updateInterval) {
+          lastUpdateRef.current = now
+          
+          const newPoint = energySimulator.generateDataPoint(now)
+          
+          setDataPoints(prev => {
+            const updated = [...prev, newPoint]
+            return updated.slice(-maxPoints)
+          })
+        }
       }
       
       animationFrameRef.current = requestAnimationFrame(update)
@@ -46,7 +48,7 @@ export function useEnergyData(timeRange: TimeRange) {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [timeRange])
+  }, [timeRange, isPaused])
   
   return dataPoints
 }

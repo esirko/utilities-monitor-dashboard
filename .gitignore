@@ -32,6 +32,3 @@ pids
 .devcontainer/
 
 .spark-workbench-id
-
-# Emporia credentials
-.creds.json
