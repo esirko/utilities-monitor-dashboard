@@ -30,8 +30,7 @@ Usage:
 
 API Endpoints:
     POST   /api/auth/login        - Authenticate with Emporia Vue
-    GET    /api/devices           - Get list of devices (uses cached data)
-    POST   /api/devices/refresh   - Manually refresh device cache
+    GET    /api/devices           - Get list of devices
     GET    /api/energy/realtime   - Get current energy data
     GET    /api/energy/history    - Get historical energy data
 """
@@ -54,7 +53,6 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-produc
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
-cached_devices = None  # Cache for devices list
 
 # Load credentials from .creds.json if it exists
 def load_credentials():
@@ -78,22 +76,6 @@ def load_credentials():
             print(f"[Credentials] Error reading .creds.json: {e}")
     return None, None
 
-# Helper function to fetch and cache devices
-def fetch_and_cache_devices():
-    """Fetch devices from Emporia API and cache them"""
-    global cached_devices
-    
-    try:
-        log_emporia_request('vue.get_devices')
-        devices = vue.get_devices()
-        log_emporia_response('vue.get_devices', devices)
-        cached_devices = devices
-        print(f"[Cache] Cached {len(devices)} device(s)")
-        return devices
-    except Exception as e:
-        print(f"[Cache] Failed to fetch devices: {str(e)}")
-        return cached_devices if cached_devices else []
-
 # Auto-authenticate on startup if credentials are available
 def auto_authenticate():
     """Automatically authenticate with Emporia Vue if credentials are in .creds.json"""
@@ -112,9 +94,6 @@ def auto_authenticate():
                 authenticated = True
                 credentials_username = username
                 print(f"[Credentials] ✓ Auto-authentication successful for {username}")
-                
-                # Fetch and cache devices after successful authentication
-                fetch_and_cache_devices()
             else:
                 authenticated = False
                 credentials_username = None
@@ -159,9 +138,9 @@ def log_emporia_response(method_name, response):
             if isinstance(response, list):
                 response_str = f"List[{len(response)} items]: {[str(item) for item in response[:3]]}"
         
-        print(f"[Emporia API] < RESPONSE {method_name}: {response_str}")
+        print(f"[Emporia API] RESPONSE < {method_name}: {response_str}")
     except Exception as e:
-        print(f"[Emporia API] < RESPONSE {method_name}: <unable to serialize: {str(e)}>")
+        print(f"[Emporia API] RESPONSE < {method_name}: <unable to serialize: {str(e)}>")
 
 # Authentication decorator
 def token_required(f):
@@ -210,9 +189,6 @@ def login():
             authenticated = True
             credentials_username = username
             
-            # Fetch and cache devices after successful login
-            fetch_and_cache_devices()
-            
             # Generate JWT token
             token = jwt.encode({
                 'username': username,
@@ -248,12 +224,9 @@ def get_devices():
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
     try:
-        # Use cached devices if available, otherwise fetch fresh
-        devices = cached_devices if cached_devices else fetch_and_cache_devices()
-        
-        if not devices:
-            return jsonify({'error': 'No devices found'}), 404
-            
+        log_emporia_request('vue.get_devices')
+        devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_list = []
         
         for device in devices:
@@ -283,23 +256,6 @@ def get_devices():
     except Exception as e:
         return jsonify({'error': f'Failed to get devices: {str(e)}'}), 500
 
-@app.route('/api/devices/refresh', methods=['POST'])
-@token_required
-def refresh_devices():
-    """Manually refresh the device cache"""
-    if not authenticated:
-        return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
-    
-    try:
-        devices = fetch_and_cache_devices()
-        return jsonify({
-            'success': True,
-            'message': f'Device cache refreshed with {len(devices)} device(s)',
-            'device_count': len(devices)
-        })
-    except Exception as e:
-        return jsonify({'error': f'Failed to refresh devices: {str(e)}'}), 500
-
 @app.route('/api/energy/realtime', methods=['GET'])
 @token_required
 def get_realtime():
@@ -308,12 +264,10 @@ def get_realtime():
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
     try:
-        # Use cached devices if available, otherwise fetch fresh
-        devices = cached_devices if cached_devices else fetch_and_cache_devices()
-        
-        if not devices:
-            return jsonify({'error': 'No devices found'}), 404
-            
+        # Get all devices
+        log_emporia_request('vue.get_devices')
+        devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_gids = [d.device_gid for d in devices]
         
         # Fetch usage data for the last second
@@ -389,12 +343,9 @@ def get_history():
     seconds = range_map.get(time_range, 60)
     
     try:
-        # Use cached devices if available, otherwise fetch fresh
-        devices = cached_devices if cached_devices else fetch_and_cache_devices()
-        
-        if not devices:
-            return jsonify({'dataPoints': []})
-            
+        log_emporia_request('vue.get_devices')
+        devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_gids = [d.device_gid for d in devices]
         
         # Generate data points for the requested time range
@@ -476,8 +427,7 @@ if __name__ == '__main__':
     print("Endpoints:")
     print("  GET    /                      - Server status")
     print("  POST   /api/auth/login        - Authenticate with credentials")
-    print("  GET    /api/devices           - Get device list (cached)")
-    print("  POST   /api/devices/refresh   - Refresh device cache")
+    print("  GET    /api/devices           - Get device list")
     print("  GET    /api/energy/realtime   - Get real-time energy data")
     print("  GET    /api/energy/history    - Get historical energy data")
     print("  GET    /health                - Health check")
