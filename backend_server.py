@@ -6,8 +6,17 @@ Uses pyemvue library to fetch real energy data from Emporia Vue
 Installation:
     pip install flask flask-cors pyemvue pyjwt
 
+Configuration (Environment Variables):
+    BACKEND_HOST    - Host to bind to (default: 0.0.0.0)
+    BACKEND_PORT    - Port to listen on (default: 5000)
+    BACKEND_DEBUG   - Enable debug mode (default: true)
+    SECRET_KEY      - JWT secret key (default: 'your-secret-key-change-this-in-production')
+
 Usage:
     python backend_server.py
+    
+    Or with custom configuration:
+    BACKEND_PORT=8000 SECRET_KEY=my-secret python backend_server.py
 
 API Endpoints:
     POST   /api/auth/login        - Authenticate with Emporia Vue
@@ -261,10 +270,15 @@ def health():
     })
 
 if __name__ == '__main__':
+    # Read host and port from environment variables
+    host = os.environ.get('BACKEND_HOST', '0.0.0.0')
+    port = int(os.environ.get('BACKEND_PORT', '5000'))
+    debug = os.environ.get('BACKEND_DEBUG', 'true').lower() == 'true'
+    
     print("=" * 60)
     print("Energy Monitor Backend Server")
     print("=" * 60)
-    print(f"Server starting on http://0.0.0.0:5000")
+    print(f"Server starting on http://{host}:{port}")
     print("Endpoints:")
     print("  POST   /api/auth/login")
     print("  GET    /api/devices")
@@ -274,4 +288,4 @@ if __name__ == '__main__':
     print("=" * 60)
     print()
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host=host, port=port, debug=debug)

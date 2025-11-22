@@ -37,10 +37,22 @@ Create `.env.local` file:
 cp .env.example .env.local
 ```
 
+### Frontend Configuration
 The default configuration works for local development:
 ```env
 VITE_API_URL=http://localhost:5000
 ```
+
+### Backend Configuration (Optional)
+The backend server uses sensible defaults, but you can customize it with environment variables:
+```bash
+export BACKEND_HOST=0.0.0.0    # Default: 0.0.0.0
+export BACKEND_PORT=5000       # Default: 5000
+export BACKEND_DEBUG=true      # Default: true
+export SECRET_KEY=your-secret  # Default: generic key (change in production!)
+```
+
+If you change `BACKEND_PORT`, make sure to update `VITE_API_URL` in `.env.local` to match.
 
 ## Step 3: Start Backend Server
 

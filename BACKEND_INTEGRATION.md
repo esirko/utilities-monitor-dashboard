@@ -147,17 +147,44 @@ def get_realtime():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    host = os.environ.get('BACKEND_HOST', '0.0.0.0')
+    port = int(os.environ.get('BACKEND_PORT', '5000'))
+    debug = os.environ.get('BACKEND_DEBUG', 'true').lower() == 'true'
+    app.run(host=host, port=port, debug=debug)
 ```
 
-## Frontend Configuration
+## Configuration
 
-Set the `VITE_API_URL` environment variable to point to your Python backend:
+### Frontend Configuration
+
+Create a `.env.local` file and set the `VITE_API_URL` environment variable to point to your Python backend:
 
 ```bash
 # .env.local
 VITE_API_URL=http://localhost:5000
 ```
+
+### Backend Configuration
+
+The Python backend server can be configured using environment variables:
+
+```bash
+# Backend server settings
+BACKEND_HOST=0.0.0.0          # Host to bind to (default: 0.0.0.0)
+BACKEND_PORT=5000             # Port to listen on (default: 5000)
+BACKEND_DEBUG=true            # Enable debug mode (default: true)
+SECRET_KEY=your-secret-key    # JWT secret key (change in production!)
+```
+
+You can set these in your shell before running the server:
+
+```bash
+export BACKEND_PORT=8000
+export SECRET_KEY=my-super-secret-key
+python backend_server.py
+```
+
+Or use a `.env` file with a tool like `python-dotenv` (not included by default).
 
 ## Running Both Servers
 
@@ -165,11 +192,15 @@ VITE_API_URL=http://localhost:5000
    ```bash
    python backend_server.py
    ```
+   
+   The server will read configuration from environment variables or use defaults.
 
 2. **Start React Frontend:**
    ```bash
    npm run dev
    ```
+   
+   The frontend will read `VITE_API_URL` from `.env.local`.
 
 ## Security Notes
 
