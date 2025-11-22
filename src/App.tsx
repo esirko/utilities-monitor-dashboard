@@ -44,6 +44,7 @@ function App() {
   
   const demoData = useEnergyData(timeRange)
   const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real')
+  const [backendDevices, setBackendDevices] = useState<any[]>([])
   
   const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
@@ -52,6 +53,21 @@ function App() {
       setDataMode('real')
     }
   }, [isAuthenticated])
+  
+  useEffect(() => {
+    if (dataMode === 'real' && isAuthenticated) {
+      const fetchDevices = async () => {
+        try {
+          const devices = await api.getDevices()
+          setBackendDevices(devices)
+        } catch (err) {
+          console.error('Failed to fetch devices from backend:', err)
+          setBackendDevices([])
+        }
+      }
+      fetchDevices()
+    }
+  }, [dataMode, isAuthenticated])
   
   const currentTotal = useMemo(() => {
     if (dataPoints.length === 0) return 0
@@ -64,15 +80,24 @@ function App() {
   }, [dataPoints])
   
   const devices = useMemo(() => {
-    const deviceList = energySimulator.getDevices()
-    if (dataPoints.length === 0) return deviceList
+    const latestData = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1] : null
     
-    const latestData = dataPoints[dataPoints.length - 1]
+    if (dataMode === 'real' && backendDevices.length > 0) {
+      return backendDevices.map(device => ({
+        ...device,
+        watts: latestData?.devices[device.id] || 0,
+        status: (latestData?.devices[device.id] || 0) > 10 ? 'active' as const : 'idle' as const
+      }))
+    }
+    
+    const deviceList = energySimulator.getDevices()
+    if (!latestData) return deviceList
+    
     return deviceList.map(device => ({
       ...device,
       watts: latestData.devices[device.id] || 0
     }))
-  }, [dataPoints])
+  }, [dataPoints, dataMode, backendDevices])
   
   const handleLogout = () => {
     api.logout()
