@@ -12,6 +12,16 @@ Configuration (Environment Variables):
     BACKEND_DEBUG   - Enable debug mode (default: true)
     SECRET_KEY      - JWT secret key (default: 'your-secret-key-change-this-in-production')
 
+Credentials:
+    You can store your Emporia credentials in a .creds.json file:
+    {
+        "username": "your-emporia-username@example.com",
+        "password": "your-emporia-password"
+    }
+    
+    Copy .creds.json.example to .creds.json and update with your credentials.
+    The server will auto-authenticate on startup if .creds.json is present.
+
 Usage:
     python backend_server.py
     
@@ -42,6 +52,51 @@ CORS(app)  # Enable CORS for React frontend
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 vue = PyEmVue()
 authenticated = False
+credentials_username = None
+
+# Load credentials from .creds.json if it exists
+def load_credentials():
+    """Load credentials from .creds.json file if it exists"""
+    creds_file = '.creds.json'
+    if os.path.exists(creds_file):
+        try:
+            with open(creds_file, 'r') as f:
+                creds = json.load(f)
+                username = creds.get('username')
+                password = creds.get('password')
+                
+                if username and password:
+                    print(f"[Credentials] Found .creds.json file")
+                    return username, password
+                else:
+                    print(f"[Credentials] .creds.json file exists but missing username or password")
+        except json.JSONDecodeError as e:
+            print(f"[Credentials] Error parsing .creds.json: {e}")
+        except Exception as e:
+            print(f"[Credentials] Error reading .creds.json: {e}")
+    return None, None
+
+# Auto-authenticate on startup if credentials are available
+def auto_authenticate():
+    """Automatically authenticate with Emporia Vue if credentials are in .creds.json"""
+    global authenticated, credentials_username
+    
+    username, password = load_credentials()
+    if username and password:
+        try:
+            print(f"[Credentials] Attempting auto-authentication for {username}...")
+            log_emporia_request('vue.login', username=username, password=password)
+            response = vue.login(username=username, password=password)
+            log_emporia_response('vue.login', response)
+            authenticated = True
+            credentials_username = username
+            print(f"[Credentials] ✓ Auto-authentication successful for {username}")
+        except Exception as e:
+            authenticated = False
+            credentials_username = None
+            print(f"[Credentials] ✗ Auto-authentication failed: {str(e)}")
+    else:
+        print(f"[Credentials] No .creds.json file found - manual login required")
 
 # Helper function to log Emporia API requests
 def log_emporia_request(method_name, **params):
@@ -104,7 +159,7 @@ def token_required(f):
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     """Authenticate with Emporia Vue credentials"""
-    global authenticated
+    global authenticated, credentials_username
     
     data = request.json
     username = data.get('username')
@@ -122,6 +177,7 @@ def login():
         response = vue.login(username=username, password=password)
         log_emporia_response('vue.login', response)
         authenticated = True
+        credentials_username = username
         
         # Generate JWT token
         token = jwt.encode({
@@ -137,6 +193,7 @@ def login():
         
     except Exception as e:
         authenticated = False
+        credentials_username = None
         return jsonify({
             'success': False,
             'message': f'Authentication failed: {str(e)}'
@@ -325,6 +382,7 @@ def health():
     return jsonify({
         'status': 'healthy',
         'authenticated': authenticated,
+        'username': credentials_username if authenticated else None,
         'timestamp': datetime.datetime.utcnow().isoformat()
     })
 
@@ -345,6 +403,10 @@ if __name__ == '__main__':
     print("  GET    /api/energy/history")
     print("  GET    /health")
     print("=" * 60)
+    print()
+    
+    # Auto-authenticate if credentials are available
+    auto_authenticate()
     print()
     
     app.run(host=host, port=port, debug=debug)

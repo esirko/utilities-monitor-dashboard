@@ -45,24 +45,31 @@ Or install manually:
 pip install flask flask-cors pyemvue pyjwt
 ```
 
-### 3. Configure Environment Variables
+### 3. Configure Credentials (Optional but Recommended)
 
-Create a `.env.local` file in the project root:
+Store your Emporia Vue credentials in a `.creds.json` file for automatic authentication:
 
 ```bash
-cp .env.example .env.local
+cp .creds.json.example .creds.json
 ```
 
-Edit `.env.local`:
-```env
-VITE_API_URL=http://localhost:5000
+Edit `.creds.json`:
+```json
+{
+  "username": "your-emporia-username@example.com",
+  "password": "your-emporia-password"
+}
 ```
+
+**Note:** `.creds.json` is already in `.gitignore` - your credentials won't be committed to Git.
 
 ### 4. Start the Python Backend Server
 
 ```bash
 python backend_server.py
 ```
+
+If you set up `.creds.json`, the backend will auto-authenticate on startup. Otherwise, you'll login through the web interface.
 
 The backend will start on `http://localhost:5000`
 
@@ -76,10 +83,10 @@ npm run dev
 
 The frontend will start on `http://localhost:5173`
 
-### 6. Login with Your Emporia Vue Credentials
+### 6. Login (if needed)
 
 1. Open `http://localhost:5173` in your browser
-2. Enter your Emporia Vue username and password
+2. If not auto-authenticated, enter your Emporia Vue credentials
 3. Click "Connect to Emporia Vue"
 4. The dashboard will load with your real energy data!
 

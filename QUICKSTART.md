@@ -32,18 +32,40 @@ pip install -r requirements.txt
 
 ## Step 2: Configure Environment
 
+### Option A: Using .creds.json (Recommended for Simplicity)
+
+Store your Emporia Vue credentials in a `.creds.json` file:
+
+```bash
+cp .creds.json.example .creds.json
+```
+
+Edit `.creds.json` with your credentials:
+```json
+{
+  "username": "your-emporia-username@example.com",
+  "password": "your-emporia-password"
+}
+```
+
+The backend will automatically authenticate on startup if this file exists.
+
+> **Note:** `.creds.json` is already in `.gitignore` - your credentials will not be committed to Git.
+
+### Option B: Using .env.local
+
 Create `.env.local` file:
 ```bash
 cp .env.example .env.local
 ```
 
-### Frontend Configuration
+#### Frontend Configuration
 The default configuration works for local development:
 ```env
 VITE_API_URL=http://localhost:5000
 ```
 
-### Backend Configuration
+#### Backend Configuration
 You can customize the backend server by editing `.env.local`:
 ```env
 BACKEND_HOST=0.0.0.0
@@ -54,11 +76,32 @@ SECRET_KEY=your-secret-key-change-this-in-production
 
 If you change `BACKEND_PORT`, make sure to update `VITE_API_URL` to match.
 
-## Step 3: Load Environment Variables and Start Backend Server
+## Step 3: Start Backend Server
+
+### If Using .creds.json
+
+Simply start the backend server - it will auto-authenticate:
+```bash
+python backend_server.py
+```
+
+You should see:
+```
+============================================================
+Energy Monitor Backend Server
+============================================================
+Server starting on http://0.0.0.0:5000
+...
+[Credentials] Found .creds.json file
+[Credentials] Attempting auto-authentication for your-email@example.com...
+[Credentials] ✓ Auto-authentication successful for your-email@example.com
+```
+
+### If Using .env.local (Environment Variables)
 
 The backend server needs to load environment variables from `.env.local` before starting. Choose the option that works for your system:
 
-### Option A: Using export (macOS/Linux)
+#### Option A: Using export (macOS/Linux)
 
 In terminal 1:
 ```bash
@@ -69,7 +112,7 @@ export $(grep -v '^#' .env.local | xargs)
 python backend_server.py
 ```
 
-### Option B: Using set (Windows Command Prompt)
+#### Option B: Using set (Windows Command Prompt)
 
 In terminal 1:
 ```cmd
@@ -80,7 +123,7 @@ for /f "tokens=*" %i in ('type .env.local ^| findstr /v "^#"') do set %i
 python backend_server.py
 ```
 
-### Option C: Using PowerShell (Windows)
+#### Option C: Using PowerShell (Windows)
 
 In terminal 1:
 ```powershell
@@ -95,7 +138,7 @@ Get-Content .env.local | Where-Object {$_ -notmatch '^#'} | ForEach-Object {
 python backend_server.py
 ```
 
-### Option D: Set variables inline (All platforms)
+#### Option D: Set variables inline (All platforms)
 
 In terminal 1:
 ```bash
@@ -109,16 +152,14 @@ $env:BACKEND_PORT="5000"; $env:SECRET_KEY="your-secret"; python backend_server.p
 set BACKEND_PORT=5000 && set SECRET_KEY=your-secret && python backend_server.py
 ```
 
-You should see:
+### Without .creds.json
+
+If no `.creds.json` file is found, you'll see:
 ```
-============================================================
-Energy Monitor Backend Server
-============================================================
-Server starting on http://0.0.0.0:5000
-....
+[Credentials] No .creds.json file found - manual login required
 ```
 
-> **Important:** If you change `BACKEND_PORT` or other environment variables in `.env.local`, you must reload them and restart the backend server for changes to take effect.
+You'll need to login through the web interface.
 
 ## Step 4: Start Frontend
 
@@ -140,6 +181,10 @@ Navigate to: **http://localhost:5173**
 
 ## Step 6: Login
 
+### If Using .creds.json
+The backend auto-authenticates, so you may already be logged in! Just check the frontend.
+
+### If Manual Login Required
 Enter your Emporia Vue credentials:
 - **Username**: Your Emporia Vue account email
 - **Password**: Your Emporia Vue account password
