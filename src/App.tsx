@@ -23,6 +23,20 @@ function App() {
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const timeRange = TIME_RANGES[selectedRange]
   
+  useEffect(() => {
+    const resizeObserverErrorHandler = (e: ErrorEvent) => {
+      if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
+        e.stopImmediatePropagation()
+      }
+    }
+    
+    window.addEventListener('error', resizeObserverErrorHandler)
+    
+    return () => {
+      window.removeEventListener('error', resizeObserverErrorHandler)
+    }
+  }, [])
+  
   const demoData = useEnergyData(timeRange)
   const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real')
   
