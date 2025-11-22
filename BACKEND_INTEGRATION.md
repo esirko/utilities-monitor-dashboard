@@ -148,7 +148,7 @@ def get_realtime():
 
 if __name__ == '__main__':
     host = os.environ.get('BACKEND_HOST', '0.0.0.0')
-    port = int(os.environ.get('BACKEND_PORT', '5000'))
+    port = int(os.environ.get('BACKEND_PORT', '5173'))
     debug = os.environ.get('BACKEND_DEBUG', 'true').lower() == 'true'
     app.run(host=host, port=port, debug=debug)
 ```
@@ -161,7 +161,7 @@ Create a `.env.local` file and set the `VITE_API_URL` environment variable to po
 
 ```bash
 # .env.local
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5173
 ```
 
 ### Backend Configuration
@@ -171,7 +171,7 @@ The Python backend server can be configured using environment variables:
 ```bash
 # Backend server settings
 BACKEND_HOST=0.0.0.0          # Host to bind to (default: 0.0.0.0)
-BACKEND_PORT=5000             # Port to listen on (default: 5000)
+BACKEND_PORT=5173             # Port to listen on (default: 5173)
 BACKEND_DEBUG=true            # Enable debug mode (default: true)
 SECRET_KEY=your-secret-key    # JWT secret key (change in production!)
 ```

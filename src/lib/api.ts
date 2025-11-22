@@ -1,6 +1,6 @@
 import { Device, DataPoint } from './types'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173'
 
 export class ApiError extends Error {
   constructor(
