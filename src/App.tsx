@@ -1,18 +1,37 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { EnergyChart } from '@/components/EnergyChart'
 import { DeviceList } from '@/components/DeviceList'
 import { TotalUsage } from '@/components/TotalUsage'
+import { LoginForm } from '@/components/LoginForm'
 import { useEnergyData } from '@/hooks/use-energy-data'
+import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { energySimulator } from '@/lib/energySimulator'
+import { api } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
-import { Lightning, ChartLine } from '@phosphor-icons/react'
+import { Lightning, ChartLine, SignOut, Database } from '@phosphor-icons/react'
+
+type DataMode = 'demo' | 'real'
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated())
+  const [dataMode, setDataMode] = useState<DataMode>('demo')
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const timeRange = TIME_RANGES[selectedRange]
-  const dataPoints = useEnergyData(timeRange)
+  
+  const demoData = useEnergyData(timeRange)
+  const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real')
+  
+  const dataPoints = dataMode === 'real' ? realDataPoints : demoData
+  
+  useEffect(() => {
+    if (isAuthenticated && dataMode === 'demo') {
+      setDataMode('real')
+    }
+  }, [isAuthenticated])
   
   const currentTotal = useMemo(() => {
     if (dataPoints.length === 0) return 0
@@ -35,22 +54,62 @@ function App() {
     }))
   }, [dataPoints])
   
+  const handleLogout = () => {
+    api.logout()
+    setIsAuthenticated(false)
+    setDataMode('demo')
+  }
+  
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true)
+    setDataMode('real')
+  }
+  
+  if (!isAuthenticated) {
+    return <LoginForm onLoginSuccess={handleLoginSuccess} />
+  }
+  
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center gap-3 mb-8">
-          <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
-            <Lightning weight="fill" className="w-8 h-8 text-primary" />
+        <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
+              <Lightning weight="fill" className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                Energy Monitor
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Real-time power consumption tracking
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Energy Monitor
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Real-time power consumption tracking
-            </p>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
+            >
+              <Database className="w-4 h-4 mr-2" />
+              {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <SignOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </header>
+        
+        {realDataError && dataMode === 'real' && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {realDataError} - Switched to demo mode.
+            </AlertDescription>
+          </Alert>
+        )}
         
         <TotalUsage 
           currentWatts={currentTotal} 
