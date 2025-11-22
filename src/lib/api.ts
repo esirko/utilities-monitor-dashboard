@@ -56,7 +56,11 @@ export const api = {
       throw new ApiError(data.message || 'Login failed', response.status, data)
     }
     
-    if (data.success && data.token) {
+    if (!data.success) {
+      throw new ApiError(data.message || 'Login failed', response.status, data)
+    }
+    
+    if (data.token) {
       localStorage.setItem('auth_token', data.token)
     }
     
