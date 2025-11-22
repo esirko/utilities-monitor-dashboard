@@ -55,7 +55,7 @@ cp .env.example .env.local
 
 Edit `.env.local`:
 ```env
-VITE_API_URL=http://localhost:5173
+VITE_API_URL=http://localhost:5000
 ```
 
 ### 4. Start the Python Backend Server
@@ -64,7 +64,7 @@ VITE_API_URL=http://localhost:5173
 python backend_server.py
 ```
 
-The backend will start on `http://localhost:5173`
+The backend will start on `http://localhost:5000`
 
 ### 5. Start the React Frontend
 
@@ -143,7 +143,7 @@ The Python backend exposes these endpoints:
 ### Backend won't start
 - Make sure Python 3.8+ is installed: `python --version`
 - Install dependencies: `pip install -r requirements.txt`
-- Check if port 5173 is available
+- Check if port 5000 is available
 
 ### Login fails
 - Verify your Emporia Vue credentials are correct

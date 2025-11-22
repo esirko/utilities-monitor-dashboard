@@ -40,14 +40,14 @@ cp .env.example .env.local
 ### Frontend Configuration
 The default configuration works for local development:
 ```env
-VITE_API_URL=http://localhost:5173
+VITE_API_URL=http://localhost:5000
 ```
 
 ### Backend Configuration
 You can customize the backend server by editing `.env.local`:
 ```env
 BACKEND_HOST=0.0.0.0
-BACKEND_PORT=5173
+BACKEND_PORT=5000
 BACKEND_DEBUG=true
 SECRET_KEY=your-secret-key-change-this-in-production
 ```
@@ -100,13 +100,13 @@ python backend_server.py
 In terminal 1:
 ```bash
 # macOS/Linux
-BACKEND_PORT=5173 SECRET_KEY=your-secret python backend_server.py
+BACKEND_PORT=5000 SECRET_KEY=your-secret python backend_server.py
 
 # Windows (PowerShell)
-$env:BACKEND_PORT="5173"; $env:SECRET_KEY="your-secret"; python backend_server.py
+$env:BACKEND_PORT="5000"; $env:SECRET_KEY="your-secret"; python backend_server.py
 
 # Windows (Command Prompt)
-set BACKEND_PORT=5173 && set SECRET_KEY=your-secret && python backend_server.py
+set BACKEND_PORT=5000 && set SECRET_KEY=your-secret && python backend_server.py
 ```
 
 You should see:
@@ -114,7 +114,7 @@ You should see:
 ============================================================
 Energy Monitor Backend Server
 ============================================================
-Server starting on http://0.0.0.0:5173
+Server starting on http://0.0.0.0:5000
 ....
 ```
 
@@ -164,7 +164,7 @@ Don't have Emporia Vue? Use **Demo Mode**:
 ## Troubleshooting
 
 ### "Failed to connect to server"
-- Make sure backend is running on port 5173
+- Make sure backend is running on port 5000
 - Check `VITE_API_URL` in `.env.local`
 - Verify environment variables were loaded (see Step 3)
 
@@ -177,7 +177,7 @@ Don't have Emporia Vue? Use **Demo Mode**:
 - Check browser console (F12) for errors
 - Verify backend shows successful requests
 
-### Backend still using port 5173 when changed
+### Backend still using port 5000 when changed
 - Make sure you loaded environment variables before starting the server
 - Restart the backend server after changing `.env.local`
 - Try Option D (inline variables) to explicitly set the port
