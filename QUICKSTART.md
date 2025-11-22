@@ -122,8 +122,6 @@ Server starting on http://0.0.0.0:5000
 
 ## Step 4: Start Frontend
 
-**Important:** If you changed `BACKEND_PORT` in `.env.local`, make sure `VITE_API_URL` matches it. For example, if you set `BACKEND_PORT=5001`, then `VITE_API_URL` should be `http://localhost:5001`.
-
 In terminal 2:
 ```bash
 npm run dev
@@ -135,8 +133,6 @@ VITE v6.x.x  ready in xxx ms
 
   ➜  Local:   http://localhost:5173/
 ```
-
-> **Note:** Vite automatically loads environment variables from `.env.local` when starting. If you modify `.env.local` while the dev server is running, you must restart `npm run dev` for changes to take effect.
 
 ## Step 5: Open in Browser
 
@@ -168,10 +164,9 @@ Don't have Emporia Vue? Use **Demo Mode**:
 ## Troubleshooting
 
 ### "Failed to connect to server"
-- Make sure backend is running (check terminal 1 for backend server output)
-- Verify `VITE_API_URL` in `.env.local` matches your `BACKEND_PORT`
-- If you changed the port, restart both backend AND frontend (`npm run dev`)
-- Check environment variables were loaded for backend (see Step 3)
+- Make sure backend is running on port 5000
+- Check `VITE_API_URL` in `.env.local`
+- Verify environment variables were loaded (see Step 3)
 
 ### "Login failed"
 - Verify credentials work in Emporia Vue mobile app
