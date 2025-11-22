@@ -88,9 +88,16 @@ def auto_authenticate():
             log_emporia_request('vue.login', username=username, password=password)
             response = vue.login(username=username, password=password)
             log_emporia_response('vue.login', response)
-            authenticated = True
-            credentials_username = username
-            print(f"[Credentials] ✓ Auto-authentication successful for {username}")
+            
+            # Only set authenticated if login returned True
+            if response:
+                authenticated = True
+                credentials_username = username
+                print(f"[Credentials] ✓ Auto-authentication successful for {username}")
+            else:
+                authenticated = False
+                credentials_username = None
+                print(f"[Credentials] ✗ Auto-authentication failed: Invalid credentials")
         except Exception as e:
             authenticated = False
             credentials_username = None
@@ -176,20 +183,30 @@ def login():
         log_emporia_request('vue.login', username=username, password=password)
         response = vue.login(username=username, password=password)
         log_emporia_response('vue.login', response)
-        authenticated = True
-        credentials_username = username
         
-        # Generate JWT token
-        token = jwt.encode({
-            'username': username,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-        }, SECRET_KEY, algorithm='HS256')
-        
-        return jsonify({
-            'success': True,
-            'token': token,
-            'message': 'Login successful'
-        })
+        # Only set authenticated if login returned True
+        if response:
+            authenticated = True
+            credentials_username = username
+            
+            # Generate JWT token
+            token = jwt.encode({
+                'username': username,
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            }, SECRET_KEY, algorithm='HS256')
+            
+            return jsonify({
+                'success': True,
+                'token': token,
+                'message': 'Login successful'
+            })
+        else:
+            authenticated = False
+            credentials_username = None
+            return jsonify({
+                'success': False,
+                'message': 'Authentication failed: Invalid credentials'
+            }), 401
         
     except Exception as e:
         authenticated = False
