@@ -59,6 +59,27 @@ def log_emporia_request(method_name, **params):
     
     return redacted_params
 
+def log_emporia_response(method_name, response):
+    """Log Emporia API responses"""
+    try:
+        # Try to format the response nicely
+        if response is None:
+            response_str = "None"
+        elif isinstance(response, (list, dict)):
+            response_str = json.dumps(response, indent=2, default=str)
+        elif isinstance(response, str):
+            response_str = response
+        else:
+            # For objects, try to get useful string representation
+            response_str = str(response)
+            # If it's a list of objects, show count and first few items
+            if isinstance(response, list):
+                response_str = f"List[{len(response)} items]: {[str(item) for item in response[:3]]}"
+        
+        print(f"[Emporia API] {method_name} response: {response_str}")
+    except Exception as e:
+        print(f"[Emporia API] {method_name} response: <unable to serialize: {str(e)}>")
+
 # Authentication decorator
 def token_required(f):
     @wraps(f)
@@ -98,7 +119,8 @@ def login():
     try:
         # Authenticate with Emporia Vue
         log_emporia_request('vue.login', username=username, password=password)
-        vue.login(username=username, password=password)
+        response = vue.login(username=username, password=password)
+        log_emporia_response('vue.login', response)
         authenticated = True
         
         # Generate JWT token
@@ -130,6 +152,7 @@ def get_devices():
     try:
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_list = []
         
         for device in devices:
@@ -170,6 +193,7 @@ def get_realtime():
         # Get all devices
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_gids = [d.device_gid for d in devices]
         
         # Fetch usage data for the last second
@@ -185,6 +209,7 @@ def get_realtime():
             scale=Scale.SECOND.value,
             unit=Unit.KWH.value
         )
+        log_emporia_response('vue.get_device_list_usage', usage_dict)
         
         # Convert to watts and build response
         devices_data = {}
@@ -246,6 +271,7 @@ def get_history():
     try:
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
+        log_emporia_response('vue.get_devices', devices)
         device_gids = [d.device_gid for d in devices]
         
         # Generate data points for the requested time range
@@ -268,6 +294,7 @@ def get_history():
                 scale=Scale.SECOND.value,
                 unit=Unit.KWH.value
             )
+            log_emporia_response('vue.get_device_list_usage', usage_dict)
             
             devices_data = {}
             total_watts = 0
