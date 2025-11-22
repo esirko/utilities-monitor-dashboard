@@ -214,3 +214,19 @@ Or use a `.env` file with a tool like `python-dotenv` (not included by default).
 ## Testing the Connection
 
 Use the login form in the app to authenticate, then the dashboard will automatically fetch real data from your Python backend instead of using simulated data.
+
+## Performance Optimizations
+
+### Device Caching
+
+The backend server implements device caching to reduce API calls to the Emporia service:
+
+- **Initial Fetch**: Devices are fetched from the Emporia API once during login or server startup (if using `.creds.json`)
+- **Cached Usage**: All subsequent requests to `/api/devices`, `/api/energy/realtime`, and `/api/energy/history` use the cached device list
+- **Manual Refresh**: If you add/remove devices in your Emporia account, you can refresh the cache by calling:
+  ```
+  POST /api/devices/refresh
+  Headers: { "Authorization": "Bearer {token}" }
+  ```
+
+This optimization significantly reduces the number of API calls to Emporia's servers, improving response times and reducing load.
