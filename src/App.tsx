@@ -82,12 +82,15 @@ function App() {
   const devices = useMemo(() => {
     const latestData = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1] : null
     
-    if (dataMode === 'real' && backendDevices.length > 0) {
-      return backendDevices.map(device => ({
-        ...device,
-        watts: latestData?.devices[device.id] || 0,
-        status: (latestData?.devices[device.id] || 0) > 10 ? 'active' as const : 'idle' as const
-      }))
+    if (dataMode === 'real' && backendDevices.length > 0 && latestData) {
+      return backendDevices.map(device => {
+        const watts = latestData.devices[device.id] || 0
+        return {
+          ...device,
+          watts,
+          status: watts > 10 ? 'active' as const : 'idle' as const
+        }
+      })
     }
     
     const deviceList = energySimulator.getDevices()
