@@ -43,22 +43,70 @@ The default configuration works for local development:
 VITE_API_URL=http://localhost:5000
 ```
 
-### Backend Configuration (Optional)
-The backend server uses sensible defaults, but you can customize it with environment variables:
-```bash
-export BACKEND_HOST=0.0.0.0    # Default: 0.0.0.0
-export BACKEND_PORT=5000       # Default: 5000
-export BACKEND_DEBUG=true      # Default: true
-export SECRET_KEY=your-secret  # Default: generic key (change in production!)
+### Backend Configuration
+You can customize the backend server by editing `.env.local`:
+```env
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=5000
+BACKEND_DEBUG=true
+SECRET_KEY=your-secret-key-change-this-in-production
 ```
 
-If you change `BACKEND_PORT`, make sure to update `VITE_API_URL` in `.env.local` to match.
+If you change `BACKEND_PORT`, make sure to update `VITE_API_URL` to match.
 
-## Step 3: Start Backend Server
+## Step 3: Load Environment Variables and Start Backend Server
+
+The backend server needs to load environment variables from `.env.local` before starting. Choose the option that works for your system:
+
+### Option A: Using export (macOS/Linux)
 
 In terminal 1:
 ```bash
+# Load environment variables from .env.local
+export $(grep -v '^#' .env.local | xargs)
+
+# Start the backend server
 python backend_server.py
+```
+
+### Option B: Using set (Windows Command Prompt)
+
+In terminal 1:
+```cmd
+# Load environment variables from .env.local (one at a time)
+for /f "tokens=*" %i in ('type .env.local ^| findstr /v "^#"') do set %i
+
+# Start the backend server
+python backend_server.py
+```
+
+### Option C: Using PowerShell (Windows)
+
+In terminal 1:
+```powershell
+# Load environment variables from .env.local
+Get-Content .env.local | Where-Object {$_ -notmatch '^#'} | ForEach-Object {
+    if ($_ -match '(.+?)=(.+)') {
+        [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+    }
+}
+
+# Start the backend server
+python backend_server.py
+```
+
+### Option D: Set variables inline (All platforms)
+
+In terminal 1:
+```bash
+# macOS/Linux
+BACKEND_PORT=5000 SECRET_KEY=your-secret python backend_server.py
+
+# Windows (PowerShell)
+$env:BACKEND_PORT="5000"; $env:SECRET_KEY="your-secret"; python backend_server.py
+
+# Windows (Command Prompt)
+set BACKEND_PORT=5000 && set SECRET_KEY=your-secret && python backend_server.py
 ```
 
 You should see:
@@ -67,8 +115,10 @@ You should see:
 Energy Monitor Backend Server
 ============================================================
 Server starting on http://0.0.0.0:5000
-...
+....
 ```
+
+> **Important:** If you change `BACKEND_PORT` or other environment variables in `.env.local`, you must reload them and restart the backend server for changes to take effect.
 
 ## Step 4: Start Frontend
 
@@ -116,6 +166,7 @@ Don't have Emporia Vue? Use **Demo Mode**:
 ### "Failed to connect to server"
 - Make sure backend is running on port 5000
 - Check `VITE_API_URL` in `.env.local`
+- Verify environment variables were loaded (see Step 3)
 
 ### "Login failed"
 - Verify credentials work in Emporia Vue mobile app
@@ -125,6 +176,11 @@ Don't have Emporia Vue? Use **Demo Mode**:
 - Switch to Demo Mode to verify frontend works
 - Check browser console (F12) for errors
 - Verify backend shows successful requests
+
+### Backend still using port 5000 when changed
+- Make sure you loaded environment variables before starting the server
+- Restart the backend server after changing `.env.local`
+- Try Option D (inline variables) to explicitly set the port
 
 ## Next Steps
 
