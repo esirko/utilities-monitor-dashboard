@@ -25,15 +25,20 @@ function App() {
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
-      if (e.message === 'ResizeObserver loop completed with undelivered notifications.') {
+      if (
+        e.message === 'ResizeObserver loop completed with undelivered notifications.' ||
+        e.message.includes('ResizeObserver loop')
+      ) {
         e.stopImmediatePropagation()
+        e.preventDefault()
+        return true
       }
     }
     
-    window.addEventListener('error', resizeObserverErrorHandler)
+    window.addEventListener('error', resizeObserverErrorHandler, true)
     
     return () => {
-      window.removeEventListener('error', resizeObserverErrorHandler)
+      window.removeEventListener('error', resizeObserverErrorHandler, true)
     }
   }, [])
   
