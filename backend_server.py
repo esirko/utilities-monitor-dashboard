@@ -33,6 +33,7 @@ import jwt
 import datetime
 import os
 from functools import wraps
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -41,6 +42,22 @@ CORS(app)  # Enable CORS for React frontend
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 vue = PyEmVue()
 authenticated = False
+
+# Helper function to log Emporia API requests
+def log_emporia_request(method_name, **params):
+    """Log Emporia API requests with parameters (redacting sensitive data)"""
+    redacted_params = params.copy()
+    
+    # Redact password if present
+    if 'password' in redacted_params:
+        redacted_params['password'] = '***REDACTED***'
+    
+    # Format parameters nicely
+    params_str = ', '.join(f'{k}={v}' for k, v in redacted_params.items())
+    
+    print(f"[Emporia API] {method_name}({params_str})")
+    
+    return redacted_params
 
 # Authentication decorator
 def token_required(f):
@@ -80,6 +97,7 @@ def login():
     
     try:
         # Authenticate with Emporia Vue
+        log_emporia_request('vue.login', username=username, password=password)
         vue.login(username=username, password=password)
         authenticated = True
         
@@ -110,6 +128,7 @@ def get_devices():
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
     try:
+        log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
         device_list = []
         
@@ -149,13 +168,20 @@ def get_realtime():
     
     try:
         # Get all devices
+        log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
         device_gids = [d.device_gid for d in devices]
         
         # Fetch usage data for the last second
+        instant = datetime.datetime.utcnow()
+        log_emporia_request('vue.get_device_list_usage', 
+                          deviceGids=device_gids,
+                          instant=instant.isoformat(),
+                          scale=Scale.SECOND.value,
+                          unit=Unit.KWH.value)
         usage_dict = vue.get_device_list_usage(
             deviceGids=device_gids,
-            instant=datetime.datetime.utcnow(),
+            instant=instant,
             scale=Scale.SECOND.value,
             unit=Unit.KWH.value
         )
@@ -218,6 +244,7 @@ def get_history():
     seconds = range_map.get(time_range, 60)
     
     try:
+        log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
         device_gids = [d.device_gid for d in devices]
         
@@ -230,6 +257,11 @@ def get_history():
         for i in range(seconds, 0, -1):
             timestamp = now - datetime.timedelta(seconds=i)
             
+            log_emporia_request('vue.get_device_list_usage',
+                              deviceGids=device_gids,
+                              instant=timestamp.isoformat(),
+                              scale=Scale.SECOND.value,
+                              unit=Unit.KWH.value)
             usage_dict = vue.get_device_list_usage(
                 deviceGids=device_gids,
                 instant=timestamp,
