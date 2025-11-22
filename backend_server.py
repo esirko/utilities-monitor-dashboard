@@ -150,7 +150,8 @@ def log_emporia_response(method_name, response):
         if response is None:
             response_str = "None"
         elif isinstance(response, (list, dict)):
-            response_str = json.dumps(response, indent=2, default=str)
+            converted = object_to_dict(response)
+            response_str = json.dumps(converted, indent=2, default=str)
         elif isinstance(response, (str, int, float, bool)):
             response_str = str(response)
         else:
