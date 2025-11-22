@@ -393,6 +393,17 @@ def get_history():
         # If historical fetch fails, return empty array
         return jsonify({'dataPoints': []})
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint - server status"""
+    return jsonify({
+        'message': 'Energy Monitor Backend Server is running',
+        'status': 'up',
+        'authenticated': authenticated,
+        'username': credentials_username if authenticated else None,
+        'timestamp': datetime.datetime.utcnow().isoformat()
+    })
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -414,11 +425,12 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"Server starting on http://{host}:{port}")
     print("Endpoints:")
-    print("  POST   /api/auth/login")
-    print("  GET    /api/devices")
-    print("  GET    /api/energy/realtime")
-    print("  GET    /api/energy/history")
-    print("  GET    /health")
+    print("  GET    /                      - Server status")
+    print("  POST   /api/auth/login        - Authenticate with credentials")
+    print("  GET    /api/devices           - Get device list")
+    print("  GET    /api/energy/realtime   - Get real-time energy data")
+    print("  GET    /api/energy/history    - Get historical energy data")
+    print("  GET    /health                - Health check")
     print("=" * 60)
     print()
     
