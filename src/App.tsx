@@ -167,7 +167,7 @@ function App() {
                 Energy Monitor
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking'}
+                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
               </p>
             </div>
           </div>
