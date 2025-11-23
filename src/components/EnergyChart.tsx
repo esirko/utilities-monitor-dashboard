@@ -27,7 +27,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`)
     
-    const deviceIds = data.length > 0 ? Object.keys(data[0].devices) : []
+    const deviceIds = data.length > 0 ? Object.keys(data[data.length - 1].devices) : []
     
     const expectedInterval = 1000
     const gapThreshold = expectedInterval * 2
