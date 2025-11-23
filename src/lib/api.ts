@@ -96,4 +96,22 @@ export const api = {
       systemName: data.systemName || 'Home'
     }
   },
+
+  async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string }> {
+    try {
+      const response = await fetch(`${API_URL}/`)
+      if (!response.ok) {
+        return { authenticated: false, username: null }
+      }
+      const data = await response.json()
+      return {
+        authenticated: data.authenticated || false,
+        username: data.username || null,
+        token: data.token || undefined
+      }
+    } catch (error) {
+      console.error('Failed to check backend authentication status:', error)
+      return { authenticated: false, username: null }
+    }
+  },
 }

@@ -516,11 +516,19 @@ def get_config():
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint - server status"""
+    token = None
+    if authenticated and credentials_username:
+        token = jwt.encode({
+            'username': credentials_username,
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+        }, SECRET_KEY, algorithm='HS256')
+    
     return jsonify({
         'message': 'Energy Monitor Backend Server is running',
         'status': 'up',
         'authenticated': authenticated,
         'username': credentials_username if authenticated else None,
+        'token': token,
         'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
     })
 

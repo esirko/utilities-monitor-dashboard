@@ -182,10 +182,10 @@ Navigate to: **http://localhost:5173**
 ## Step 6: Login
 
 ### If Using .creds.json
-The backend auto-authenticates, so you may already be logged in! Just check the frontend.
+The backend auto-authenticates on startup, and the frontend will automatically detect this and bypass the login screen! You should be taken directly to the dashboard.
 
 ### If Manual Login Required
-Enter your Emporia Vue credentials:
+If no `.creds.json` file is present, you'll see the login screen. Enter your Emporia Vue credentials:
 - **Username**: Your Emporia Vue account email
 - **Password**: Your Emporia Vue account password
 
