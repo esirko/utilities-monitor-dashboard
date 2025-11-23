@@ -217,7 +217,7 @@ function App() {
           </div>
         </Card>
         
-        <Card className="p-6">
+        <Card className="p-6 font-sans">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Lightning weight="bold" className="w-5 h-5 text-accent" />
             Active Devices
@@ -235,7 +235,7 @@ function App() {
         </footer>
       </div>
     </div>
-  )
+  );
 }
 
 export default App
