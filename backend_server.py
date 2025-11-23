@@ -7,10 +7,11 @@ Installation:
     pip install flask flask-cors pyemvue pyjwt
 
 Configuration (Environment Variables):
-    BACKEND_HOST    - Host to bind to (default: 0.0.0.0)
-    BACKEND_PORT    - Port to listen on (default: 5001)
-    BACKEND_DEBUG   - Enable debug mode (default: true)
-    SECRET_KEY      - JWT secret key (default: 'your-secret-key-change-this-in-production')
+    BACKEND_HOST      - Host to bind to (default: 0.0.0.0)
+    BACKEND_PORT      - Port to listen on (default: 5001)
+    BACKEND_DEBUG     - Enable debug mode (default: true)
+    SECRET_KEY        - JWT secret key (default: 'your-secret-key-change-this-in-production')
+    ELECTRICITY_RATE  - Rate per kWh in dollars (default: 0.314555)
 
 Credentials:
     You can store your Emporia credentials in a .creds.json file:
@@ -50,6 +51,7 @@ CORS(app)  # Enable CORS for React frontend
 
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -476,6 +478,7 @@ if __name__ == '__main__':
     print("Energy Monitor Backend Server")
     print("=" * 60)
     print(f"Server starting on http://{host}:{port}")
+    print(f"Electricity Rate: ${ELECTRICITY_RATE:.6f} per kWh")
     print("Endpoints:")
     print("  GET    /                      - Server status")
     print("  POST   /api/auth/login        - Authenticate with credentials")
