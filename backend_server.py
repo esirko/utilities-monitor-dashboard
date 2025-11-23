@@ -275,10 +275,6 @@ def get_devices():
             # Get channels for this device
             channels = device.channels if hasattr(device, 'channels') else []
             
-            # WEIRD: Filter out device with GID "1,2,3" - this should be revisited when we get more devices
-            if str(device.device_gid) == "1,2,3":
-                continue
-            
             # Add main device
             device_list.append({
                 'id': str(device.device_gid),
