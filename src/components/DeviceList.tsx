@@ -53,7 +53,7 @@ export function DeviceList({ devices }: DeviceListProps) {
               </div>
             </div>
             
-            <div className="mt-2 h-1 bg-secondary rounded-full overflow-hidden">
+            <div className="mt-1 h-1 bg-secondary rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-primary to-accent"
                 initial={{ width: 0 }}
