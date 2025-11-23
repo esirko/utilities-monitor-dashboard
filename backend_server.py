@@ -7,10 +7,11 @@ Installation:
     pip install flask flask-cors pyemvue pyjwt
 
 Configuration (Environment Variables):
-    BACKEND_HOST    - Host to bind to (default: 0.0.0.0)
-    BACKEND_PORT    - Port to listen on (default: 5001)
-    BACKEND_DEBUG   - Enable debug mode (default: true)
-    SECRET_KEY      - JWT secret key (default: 'your-secret-key-change-this-in-production')
+    BACKEND_HOST       - Host to bind to (default: 0.0.0.0)
+    BACKEND_PORT       - Port to listen on (default: 5001)
+    BACKEND_DEBUG      - Enable debug mode (default: true)
+    SECRET_KEY         - JWT secret key (default: 'your-secret-key-change-this-in-production')
+    ELECTRICITY_RATE   - Rate of electricity in currency per kWh (default: 0.3243)
 
 Credentials:
     You can store your Emporia credentials in a .creds.json file:
@@ -50,6 +51,7 @@ CORS(app)  # Enable CORS for React frontend
 
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
+ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.3243'))
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -445,6 +447,14 @@ def get_history():
         # If historical fetch fails, return empty array
         return jsonify({'dataPoints': []})
 
+@app.route('/api/config', methods=['GET'])
+@token_required
+def get_config():
+    """Get server configuration"""
+    return jsonify({
+        'electricityRate': ELECTRICITY_RATE
+    })
+
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint - server status"""
@@ -453,6 +463,7 @@ def root():
         'status': 'up',
         'authenticated': authenticated,
         'username': credentials_username if authenticated else None,
+        'electricityRate': ELECTRICITY_RATE,
         'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
     })
 
@@ -476,9 +487,11 @@ if __name__ == '__main__':
     print("Energy Monitor Backend Server")
     print("=" * 60)
     print(f"Server starting on http://{host}:{port}")
+    print(f"Electricity Rate: ${ELECTRICITY_RATE}/kWh")
     print("Endpoints:")
     print("  GET    /                      - Server status")
     print("  POST   /api/auth/login        - Authenticate with credentials")
+    print("  GET    /api/config            - Get server configuration")
     print("  GET    /api/devices           - Get device list")
     print("  GET    /api/energy/realtime   - Get real-time energy data")
     print("  GET    /api/energy/history    - Get historical energy data")
