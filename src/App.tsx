@@ -227,7 +227,7 @@ function App() {
             </div>
           </Card>
           <Card className="p-6 border-2 border-primary/30">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Est.</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Extrapolation</div>
             <div className="text-3xl font-bold text-foreground tabular-nums">
               ${monthlyCost.toFixed(2)}
             </div>
