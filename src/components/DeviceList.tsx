@@ -20,7 +20,7 @@ export function DeviceList({ devices }: DeviceListProps) {
   const sortedDevices = [...uniqueDevices].sort((a, b) => b.watts - a.watts)
   
   return (
-    <div className="space-y-2">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
       {sortedDevices.map((device, index) => (
         <motion.div
           key={`${device.id}-${index}`}
