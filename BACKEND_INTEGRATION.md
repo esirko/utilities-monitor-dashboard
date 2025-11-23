@@ -64,15 +64,6 @@ Response: {
 }
 ```
 
-### 5. Get Server Configuration
-```
-GET /api/config
-Headers: { "Authorization": "Bearer {token}" }
-Response: {
-  "electricityRate": number
-}
-```
-
 ## Example Python Backend (Flask)
 
 ```python
@@ -183,9 +174,6 @@ BACKEND_HOST=0.0.0.0          # Host to bind to (default: 0.0.0.0)
 BACKEND_PORT=5000             # Port to listen on (default: 5000)
 BACKEND_DEBUG=true            # Enable debug mode (default: true)
 SECRET_KEY=your-secret-key    # JWT secret key (change in production!)
-
-# Electricity rate configuration
-ELECTRICITY_RATE=0.3243       # Rate per kWh in your local currency (default: 0.3243)
 ```
 
 You can set these in your shell before running the server:
@@ -193,25 +181,10 @@ You can set these in your shell before running the server:
 ```bash
 export BACKEND_PORT=8000
 export SECRET_KEY=my-super-secret-key
-export ELECTRICITY_RATE=0.15
 python backend_server.py
 ```
 
-Or create a `.env.local` file in the project root:
-
-```bash
-# .env.local
-BACKEND_HOST=0.0.0.0
-BACKEND_PORT=5001
-BACKEND_DEBUG=true
-SECRET_KEY=your-secret-key-change-this-in-production
-ELECTRICITY_RATE=0.3243
-```
-
-To load the `.env.local` file automatically, you can use tools like:
-- `python-dotenv` library
-- `direnv` shell extension
-- Or manually: `export $(cat .env.local | xargs) && python backend_server.py`
+Or use a `.env` file with a tool like `python-dotenv` (not included by default).
 
 ## Running Both Servers
 
