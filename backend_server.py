@@ -14,6 +14,7 @@ Configuration (Environment Variables):
     ELECTRICITY_RATE  - Rate per kWh in dollars (default: 0.314555)
     SYSTEM_NAME       - Name of the system/house (default: 'Home')
     DEVICE_CACHE_TTL  - Device cache time-to-live in seconds (default: 300)
+    VERBOSE_LOGGING   - Enable verbose device usage logging (default: false)
 
 Credentials:
     You can store your Emporia credentials in a .creds.json file:
@@ -57,6 +58,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-produc
 ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
 SYSTEM_NAME = os.environ.get('SYSTEM_NAME', 'Home')
 DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
+VERBOSE_LOGGING = os.environ.get('VERBOSE_LOGGING', 'false').lower() == 'true'  # Enable verbose device usage logging
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -101,8 +103,10 @@ def invalidate_device_cache():
     print(f"[Cache] Device cache invalidated")
 
 # Print usage data, taken from the example at https://github.com/magico13/PyEmVue
-def log_usage_recursive(usage_dict, info, depth=0):
-    print(f"[Emporia API] RESPONSE < vue.get_device_list_usage:")
+def log_usage_recursive(usage_dict, info, depth=0, first_call=True):
+    """Verbose logging for usage data"""
+    if first_call:
+        print(f"[Emporia API] RESPONSE < vue.get_device_list_usage:")
     for gid, device in usage_dict.items():
         for channelnum, channel in device.channels.items():
             name = channel.name
@@ -110,7 +114,29 @@ def log_usage_recursive(usage_dict, info, depth=0):
                 name = info[gid].device_name
             print('-'*depth, f'{gid} {channelnum:<2} {name:<20} {channel.usage} kW')
             if channel.nested_devices:
-                log_usage_recursive(channel.nested_devices, info, depth+1)
+                log_usage_recursive(channel.nested_devices, info, depth+1, first_call=False)
+
+def log_usage_compact(usage_dict, info):
+    """Compact single-line logging for usage data"""
+    device_summaries = []
+    total_kw = 0
+    
+    def collect_usage(usage_dict, depth=0):
+        nonlocal total_kw
+        for gid, device in usage_dict.items():
+            for channelnum, channel in device.channels.items():
+                name = channel.name
+                if name == 'Main':
+                    name = info[gid].device_name
+                usage_kw = channel.usage
+                total_kw += usage_kw
+                device_summaries.append(f"{name}:{usage_kw:.3f}kW")
+                if channel.nested_devices:
+                    collect_usage(channel.nested_devices, depth+1)
+    
+    collect_usage(usage_dict)
+    devices_str = ", ".join(device_summaries)
+    print(f"[Emporia API] RESPONSE < vue.get_device_list_usage: Total={total_kw:.3f}kW [{devices_str}]")
 
 def log_devices(devices):
     print(f"[Emporia API] RESPONSE < vue.get_devices:")
@@ -371,7 +397,10 @@ def get_realtime():
             for channelnum, channel in device.channels.items():
                 channel.usage = 3600 * channel.usage
 
-        log_usage_recursive(usage_dict, device_info)
+        if VERBOSE_LOGGING:
+            log_usage_recursive(usage_dict, device_info)
+        else:
+            log_usage_compact(usage_dict, device_info)
         
         # Convert to watts and build response
         devices_data = {}
@@ -460,7 +489,10 @@ def get_history():
                 for channelnum, channel in device.channels.items():
                     channel.usage = 3600 * channel.usage
 
-            log_usage_recursive(usage_dict, device_info)
+            if VERBOSE_LOGGING:
+                log_usage_recursive(usage_dict, device_info)
+            else:
+                log_usage_compact(usage_dict, device_info)
         
             devices_data = {}
             total_watts = 0
@@ -555,6 +587,7 @@ if __name__ == '__main__':
     print(f"System Name: {SYSTEM_NAME}")
     print(f"Electricity Rate: ${ELECTRICITY_RATE:.6f} per kWh")
     print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
+    print(f"Verbose Logging: {'Enabled' if VERBOSE_LOGGING else 'Disabled'}")
     print("Endpoints:")
     print("  GET    /                      - Server status")
     print("  POST   /api/auth/login        - Authenticate with credentials")
