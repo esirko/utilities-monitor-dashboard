@@ -11,6 +11,7 @@ interface EnergyChartProps {
 export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
   
   useEffect(() => {
     if (!svgRef.current || !containerRef.current || data.length === 0) return
@@ -171,19 +172,23 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .style('font-family', 'JetBrains Mono')
       .style('font-size', '11px')
     
-    const tooltip = d3.select(container)
-      .append('div')
-      .attr('class', 'tooltip')
-      .style('position', 'absolute')
-      .style('pointer-events', 'none')
-      .style('opacity', 0)
-      .style('background', 'oklch(0.20 0.01 240)')
-      .style('border', '1px solid oklch(0.65 0.19 240)')
-      .style('border-radius', '4px')
-      .style('padding', '8px')
-      .style('font-family', 'JetBrains Mono')
-      .style('font-size', '12px')
-      .style('color', 'oklch(0.95 0.01 240)')
+    if (!tooltipRef.current) {
+      tooltipRef.current = d3.select(container)
+        .append('div')
+        .attr('class', 'tooltip')
+        .style('position', 'absolute')
+        .style('pointer-events', 'none')
+        .style('opacity', 0)
+        .style('background', 'oklch(0.20 0.01 240)')
+        .style('border', '1px solid oklch(0.65 0.19 240)')
+        .style('border-radius', '4px')
+        .style('padding', '8px')
+        .style('font-family', 'JetBrains Mono')
+        .style('font-size', '12px')
+        .style('color', 'oklch(0.95 0.01 240)')
+    }
+    
+    const tooltip = tooltipRef.current
     
     const overlay = g
       .append('rect')
@@ -241,10 +246,6 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .on('mouseout', () => {
         tooltip.style('opacity', 0)
       })
-    
-    return () => {
-      tooltip.remove()
-    }
   }, [data, height])
   
   return (
