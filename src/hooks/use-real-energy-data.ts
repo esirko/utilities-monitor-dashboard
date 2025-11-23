@@ -46,10 +46,19 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
     setError(null)
     const maxPoints = timeRange.seconds
     
+    const calculateTotal = (dataPoint: DataPoint): DataPoint => {
+      const total = Object.values(dataPoint.devices).reduce((sum, watts) => sum + watts, 0)
+      return {
+        ...dataPoint,
+        total
+      }
+    }
+    
     const fetchHistoricalData = async () => {
       try {
         const historical = await api.getHistoricalData(timeRange.label)
-        setDataPoints(historical.slice(-maxPoints))
+        const historicalWithTotals = historical.map(calculateTotal)
+        setDataPoints(historicalWithTotals.slice(-maxPoints))
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message)
@@ -65,9 +74,10 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
     const fetchRealtimeData = async () => {
       try {
         const newPoint = await api.getRealtimeData()
+        const pointWithTotal = calculateTotal(newPoint)
         
         setDataPoints(prev => {
-          const updated = [...prev, newPoint]
+          const updated = [...prev, pointWithTotal]
           return updated.slice(-maxPoints)
         })
         
