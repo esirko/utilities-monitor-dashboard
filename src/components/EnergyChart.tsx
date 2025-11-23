@@ -1,19 +1,28 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
-import { DataPoint } from '@/lib/types'
-import { energySimulator } from '@/lib/energySimulator'
+import { DataPoint, Device } from '@/lib/types'
 
 interface EnergyChartProps {
   data: DataPoint[]
+  devices: Device[]
   height?: number
 }
 
-export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
+export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
   const lastMousePositionRef = useRef<{ x: number; y: number } | null>(null)
   const isMouseOverRef = useRef(false)
+  const devicesMapRef = useRef<Map<string, Device>>(new Map())
+  
+  useEffect(() => {
+    const newMap = new Map<string, Device>()
+    devices.forEach(device => {
+      newMap.set(device.id, device)
+    })
+    devicesMapRef.current = newMap
+  }, [devices])
   
   useEffect(() => {
     if (!svgRef.current || !containerRef.current || data.length === 0) return
@@ -216,7 +225,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
         if (stackPoint) {
           const deviceId = stackPoint.key
           const deviceWatts = dataPoint.devices[deviceId] || 0
-          const device = energySimulator.getDevice(deviceId)
+          const device = devicesMapRef.current.get(deviceId)
           const deviceName = device?.name || deviceId
           const deviceColor = colorScale(deviceId)
           
@@ -266,7 +275,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
         updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
       }
     }
-  }, [data, height])
+  }, [data, devices, height])
   
   return (
     <div ref={containerRef} className="w-full relative">

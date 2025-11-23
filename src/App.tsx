@@ -213,7 +213,7 @@ function App() {
           </div>
           
           <div className="bg-secondary/30 rounded-lg p-4">
-            <EnergyChart data={dataPoints} height={400} />
+            <EnergyChart data={dataPoints} devices={devices} height={400} />
           </div>
         </Card>
         
