@@ -142,18 +142,18 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
       const series = stackedData.find(s => s.key === id)
       if (!series) return
       
-      const midIndex = Math.floor(data.length / 2)
-      const midPoint = series[midIndex]
-      if (!midPoint) return
+      const leftIndex = Math.floor(data.length * 0.1)
+      const leftPoint = series[leftIndex]
+      if (!leftPoint) return
       
-      const y0 = yScale(midPoint[0])
-      const y1 = yScale(midPoint[1])
+      const y0 = yScale(leftPoint[0])
+      const y1 = yScale(leftPoint[1])
       const regionHeight = y0 - y1
       
       if (regionHeight < 20) return
       
       const labelY = (y0 + y1) / 2
-      const labelX = innerWidth / 2
+      const labelX = innerWidth * 0.15
       
       const textColor = 'oklch(1 0 0)'
       
