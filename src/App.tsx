@@ -46,6 +46,7 @@ function App() {
   const demoData = useEnergyData(timeRange, isPaused)
   const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
+  const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   
   const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
@@ -67,6 +68,16 @@ function App() {
         }
       }
       fetchDevices()
+      
+      const fetchRate = async () => {
+        try {
+          const rate = await api.getElectricityRate()
+          setElectricityRate(rate)
+        } catch (err) {
+          console.error('Failed to fetch electricity rate from backend:', err)
+        }
+      }
+      fetchRate()
     }
   }, [dataMode, isAuthenticated])
   
@@ -108,6 +119,15 @@ function App() {
       watts: latestData.devices[device.id] || 0
     }))
   }, [dataPoints, dataMode, backendDevices])
+  
+  const hourlyCost = useMemo(() => {
+    const kWh = currentTotal / 1000
+    return kWh * electricityRate
+  }, [currentTotal, electricityRate])
+  
+  const monthlyCost = useMemo(() => {
+    return hourlyCost * 24 * 30
+  }, [hourlyCost])
   
   const handleLogout = () => {
     api.logout()
@@ -152,38 +172,55 @@ function App() {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            {isAuthenticated && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
-              >
-                <Database className="w-4 h-4 mr-2" />
-                {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
-              </Button>
-            )}
-            <Button 
-              variant={isPaused ? "default" : "outline"}
-              size="sm" 
-              onClick={() => setIsPaused(!isPaused)}
-            >
-              {isPaused ? (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume
-                </>
-              ) : (
-                <>
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause
-                </>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex gap-3">
+              <div className="px-4 py-2 rounded-lg bg-card border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Hourly Cost</div>
+                <div className="text-lg font-bold text-foreground mt-1">
+                  ${hourlyCost.toFixed(4)}
+                </div>
+              </div>
+              <div className="px-4 py-2 rounded-lg bg-card border border-border">
+                <div className="text-xs text-muted-foreground uppercase tracking-wider">Monthly Est.</div>
+                <div className="text-lg font-bold text-foreground mt-1">
+                  ${monthlyCost.toFixed(2)}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {isAuthenticated && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
+                </Button>
               )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <SignOut className="w-4 h-4 mr-2" />
-              {isDemoMode ? 'Exit Demo' : 'Logout'}
-            </Button>
+              <Button 
+                variant={isPaused ? "default" : "outline"}
+                size="sm" 
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Resume
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <SignOut className="w-4 h-4 mr-2" />
+                {isDemoMode ? 'Exit Demo' : 'Logout'}
+              </Button>
+            </div>
           </div>
         </header>
         

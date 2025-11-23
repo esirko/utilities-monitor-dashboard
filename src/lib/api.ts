@@ -88,4 +88,9 @@ export const api = {
     const data = await fetchWithAuth(`/api/energy/history?range=${range}`)
     return data.dataPoints || []
   },
+
+  async getElectricityRate(): Promise<number> {
+    const data = await fetchWithAuth('/api/config/electricity-rate')
+    return data.rate || 0.314555
+  },
 }
