@@ -128,6 +128,60 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
       .attr('stroke', d => colorScale(d.key))
       .attr('stroke-width', 1.5)
     
+    const latestDataPoint = data[data.length - 1]
+    const deviceSizes = deviceIds.map(id => ({
+      id,
+      watts: latestDataPoint.devices[id] || 0,
+      device: devicesMapRef.current.get(id)
+    })).sort((a, b) => b.watts - a.watts)
+    
+    const topDevices = deviceSizes.slice(0, 3).filter(d => d.watts > 100)
+    
+    topDevices.forEach(({ id, device }) => {
+      const deviceName = device?.name || id
+      const series = stackedData.find(s => s.key === id)
+      if (!series) return
+      
+      const midIndex = Math.floor(data.length / 2)
+      const midPoint = series[midIndex]
+      if (!midPoint) return
+      
+      const y0 = yScale(midPoint[0])
+      const y1 = yScale(midPoint[1])
+      const regionHeight = y0 - y1
+      
+      if (regionHeight < 20) return
+      
+      const labelY = (y0 + y1) / 2
+      const labelX = innerWidth / 2
+      
+      const textColor = 'oklch(1 0 0)'
+      
+      const textElement = g.append('text')
+        .attr('x', labelX)
+        .attr('y', labelY)
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle')
+        .attr('font-family', 'JetBrains Mono')
+        .attr('font-size', '12px')
+        .attr('font-weight', '600')
+        .attr('fill', textColor)
+        .attr('pointer-events', 'none')
+        .text(deviceName)
+      
+      const bbox = (textElement.node() as SVGTextElement).getBBox()
+      
+      g.insert('rect', 'text:last-of-type')
+        .attr('x', bbox.x - 4)
+        .attr('y', bbox.y - 2)
+        .attr('width', bbox.width + 8)
+        .attr('height', bbox.height + 4)
+        .attr('fill', colorScale(id))
+        .attr('opacity', 0.9)
+        .attr('rx', 3)
+        .attr('pointer-events', 'none')
+    })
+    
     gaps.forEach(gap => {
       const x1 = xScale(gap.start)
       const x2 = xScale(gap.end)
