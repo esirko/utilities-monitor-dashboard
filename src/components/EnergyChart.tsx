@@ -242,7 +242,7 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
         tooltip
           .html(html)
           .style('opacity', 1)
-          .style('left', `${offsetX + 10}px`)
+          .style('left', `${offsetX - tooltip.node()!.offsetWidth - 10}px`)
           .style('top', `${offsetY - 10}px`)
       }
     }
