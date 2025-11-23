@@ -54,56 +54,25 @@ vue = PyEmVue()
 authenticated = False
 credentials_username = None
 
-# Load credentials from .creds.json if it exists
-def load_credentials():
-    """Load credentials from .creds.json file if it exists"""
-    creds_file = '.creds.json'
-    if os.path.exists(creds_file):
-        try:
-            with open(creds_file, 'r') as f:
-                creds = json.load(f)
-                username = creds.get('username')
-                password = creds.get('password')
-                
-                if username and password:
-                    print(f"[Credentials] Found .creds.json file")
-                    return username, password
-                else:
-                    print(f"[Credentials] .creds.json file exists but missing username or password")
-        except json.JSONDecodeError as e:
-            print(f"[Credentials] Error parsing .creds.json: {e}")
-        except Exception as e:
-            print(f"[Credentials] Error reading .creds.json: {e}")
-    return None, None
+# Print usage data, taken from the example at https://github.com/magico13/PyEmVue
+def log_usage_recursive(usage_dict, info, depth=0):
+    print(f"[Emporia API] RESPONSE < vue.get_device_list_usage:")
+    for gid, device in usage_dict.items():
+        for channelnum, channel in device.channels.items():
+            name = channel.name
+            if name == 'Main':
+                name = info[gid].device_name
+            print('-'*depth, f'{gid} {channelnum:<2} {name:<20} {channel.usage} kW')
+            if channel.nested_devices:
+                log_usage_recursive(channel.nested_devices, info, depth+1)
 
-# Auto-authenticate on startup if credentials are available
-def auto_authenticate():
-    """Automatically authenticate with Emporia Vue if credentials are in .creds.json"""
-    global authenticated, credentials_username
-    
-    username, password = load_credentials()
-    if username and password:
-        try:
-            print(f"[Credentials] Attempting auto-authentication for {username}...")
-            log_emporia_request('vue.login', username=username, password=password)
-            response = vue.login(username=username, password=password)
-            log_emporia_response('vue.login', response)
-            
-            # Only set authenticated if login returned True
-            if response:
-                authenticated = True
-                credentials_username = username
-                print(f"[Credentials] ✓ Auto-authentication successful for {username}")
-            else:
-                authenticated = False
-                credentials_username = None
-                print(f"[Credentials] ✗ Auto-authentication failed: Invalid credentials")
-        except Exception as e:
-            authenticated = False
-            credentials_username = None
-            print(f"[Credentials] ✗ Auto-authentication failed: {str(e)}")
-    else:
-        print(f"[Credentials] No .creds.json file found - manual login required")
+def log_devices(devices):
+    print(f"[Emporia API] RESPONSE < vue.get_devices:")
+    for device in devices:
+        print(f" - Device GID: {device.device_gid}, Name: {device.device_name}, Channels: {len(device.channels) if hasattr(device, 'channels') else 0}")
+        if hasattr(device, 'channels'):
+            for channel in device.channels:
+                print(f"    - Channel Num: {channel.channel_num}, Name: {channel.name}")
 
 # Helper function to log Emporia API requests
 def log_emporia_request(method_name, **params):
@@ -121,7 +90,7 @@ def log_emporia_request(method_name, **params):
     
     return redacted_params
 
-def log_emporia_response(method_name, response):
+def log_emporia_response_full_json(method_name, response):
     """Log Emporia API responses with detailed object introspection"""
     
     def object_to_dict(obj):
@@ -164,6 +133,57 @@ def log_emporia_response(method_name, response):
     except Exception as e:
         print(f"[Emporia API] RESPONSE < {method_name}: <unable to serialize: {str(e)}>")
 
+# Load credentials from .creds.json if it exists
+def load_credentials():
+    """Load credentials from .creds.json file if it exists"""
+    creds_file = '.creds.json'
+    if os.path.exists(creds_file):
+        try:
+            with open(creds_file, 'r') as f:
+                creds = json.load(f)
+                username = creds.get('username')
+                password = creds.get('password')
+                
+                if username and password:
+                    print(f"[Credentials] Found .creds.json file")
+                    return username, password
+                else:
+                    print(f"[Credentials] .creds.json file exists but missing username or password")
+        except json.JSONDecodeError as e:
+            print(f"[Credentials] Error parsing .creds.json: {e}")
+        except Exception as e:
+            print(f"[Credentials] Error reading .creds.json: {e}")
+    return None, None
+
+# Auto-authenticate on startup if credentials are available
+def auto_authenticate():
+    """Automatically authenticate with Emporia Vue if credentials are in .creds.json"""
+    global authenticated, credentials_username
+    
+    username, password = load_credentials()
+    if username and password:
+        try:
+            print(f"[Credentials] Attempting auto-authentication for {username}...")
+            log_emporia_request('vue.login', username=username, password=password)
+            response = vue.login(username=username, password=password)
+            log_emporia_response_full_json('vue.login', response)
+            
+            # Only set authenticated if login returned True
+            if response:
+                authenticated = True
+                credentials_username = username
+                print(f"[Credentials] ✓ Auto-authentication successful for {username}")
+            else:
+                authenticated = False
+                credentials_username = None
+                print(f"[Credentials] ✗ Auto-authentication failed: Invalid credentials")
+        except Exception as e:
+            authenticated = False
+            credentials_username = None
+            print(f"[Credentials] ✗ Auto-authentication failed: {str(e)}")
+    else:
+        print(f"[Credentials] No .creds.json file found - manual login required")
+
 # Authentication decorator
 def token_required(f):
     @wraps(f)
@@ -204,7 +224,7 @@ def login():
         # Authenticate with Emporia Vue
         log_emporia_request('vue.login', username=username, password=password)
         response = vue.login(username=username, password=password)
-        log_emporia_response('vue.login', response)
+        log_emporia_response_full_json('vue.login', response)
         
         # Only set authenticated if login returned True
         if response:
@@ -248,7 +268,7 @@ def get_devices():
     try:
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
-        log_emporia_response('vue.get_devices', devices)
+        log_devices(devices)
         device_list = []
         
         for device in devices:
@@ -289,23 +309,27 @@ def get_realtime():
         # Get all devices
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
-        log_emporia_response('vue.get_devices', devices)
-        device_gids = [d.device_gid for d in devices]
+        log_devices(devices)
+        device_gids = []
+        device_info = {}
+        for device in devices:
+            if not device.device_gid in device_gids:
+                device_gids.append(device.device_gid)
+                device_info[device.device_gid] = device
+            else:
+                device_info[device.device_gid].channels += device.channels
         
         # Fetch usage data for the last second
         instant = datetime.datetime.now(datetime.UTC)
-        log_emporia_request('vue.get_device_list_usage', 
-                          deviceGids=device_gids,
-                          instant=instant.isoformat(),
-                          scale=Scale.SECOND.value,
-                          unit=Unit.KWH.value)
-        usage_dict = vue.get_device_list_usage(
-            deviceGids=device_gids,
-            instant=instant,
-            scale=Scale.SECOND.value,
-            unit=Unit.KWH.value
-        )
-        log_emporia_response('vue.get_device_list_usage', usage_dict)
+        log_emporia_request('vue.get_device_list_usage', deviceGids=device_gids, instant=instant.isoformat(), scale=Scale.SECOND.value, unit=Unit.KWH.value)
+        usage_dict = vue.get_device_list_usage( deviceGids=device_gids, instant=None, scale=Scale.SECOND.value, unit=Unit.KWH.value)
+
+        # Correct units to kW
+        for gid, device in usage_dict.items():
+            for channelnum, channel in device.channels.items():
+                channel.usage = 3600 * channel.usage
+
+        log_usage_recursive(usage_dict, device_info)
         
         # Convert to watts and build response
         devices_data = {}
@@ -367,8 +391,15 @@ def get_history():
     try:
         log_emporia_request('vue.get_devices')
         devices = vue.get_devices()
-        log_emporia_response('vue.get_devices', devices)
-        device_gids = [d.device_gid for d in devices]
+        log_devices(devices)
+        device_gids = []
+        device_info = {}
+        for device in devices:
+            if not device.device_gid in device_gids:
+                device_gids.append(device.device_gid)
+                device_info[device.device_gid] = device
+            else:
+                device_info[device.device_gid].channels += device.channels
         
         # Generate data points for the requested time range
         data_points = []
@@ -379,19 +410,16 @@ def get_history():
         for i in range(seconds, 0, -1):
             timestamp = now - datetime.timedelta(seconds=i)
             
-            log_emporia_request('vue.get_device_list_usage',
-                              deviceGids=device_gids,
-                              instant=timestamp.isoformat(),
-                              scale=Scale.SECOND.value,
-                              unit=Unit.KWH.value)
-            usage_dict = vue.get_device_list_usage(
-                deviceGids=device_gids,
-                instant=timestamp,
-                scale=Scale.SECOND.value,
-                unit=Unit.KWH.value
-            )
-            log_emporia_response('vue.get_device_list_usage', usage_dict)
-            
+            log_emporia_request('vue.get_device_list_usage', deviceGids=device_gids, instant=timestamp.isoformat(), scale=Scale.SECOND.value, unit=Unit.KWH.value)
+            usage_dict = vue.get_device_list_usage( deviceGids=device_gids, instant=timestamp, scale=Scale.SECOND.value, unit=Unit.KWH.value)
+
+            # Correct units to kW
+            for gid, device in usage_dict.items():
+                for channelnum, channel in device.channels.items():
+                    channel.usage = 3600 * channel.usage
+
+            log_usage_recursive(usage_dict, device_info)
+        
             devices_data = {}
             total_watts = 0
             
