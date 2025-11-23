@@ -73,13 +73,6 @@ export function TotalUsage({ currentWatts, previousWatts = 0 }: TotalUsageProps)
             </div>
           )}
         </div>
-        
-        <div className="text-right">
-          <div className="text-sm text-muted-foreground mb-1">Current Draw</div>
-          <div className="text-lg font-mono tabular-nums">
-            {Math.round(currentWatts)} W
-          </div>
-        </div>
       </div>
     </Card>
   )

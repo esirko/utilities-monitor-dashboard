@@ -172,55 +172,38 @@ function App() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex gap-3">
-              <div className="px-4 py-2 rounded-lg bg-card border border-border">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">Hourly Cost</div>
-                <div className="text-lg font-bold text-foreground mt-1">
-                  ${hourlyCost.toFixed(4)}
-                </div>
-              </div>
-              <div className="px-4 py-2 rounded-lg bg-card border border-border">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">Monthly Est.</div>
-                <div className="text-lg font-bold text-foreground mt-1">
-                  ${monthlyCost.toFixed(2)}
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              {isAuthenticated && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
-                >
-                  <Database className="w-4 h-4 mr-2" />
-                  {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
-                </Button>
-              )}
-              <Button 
-                variant={isPaused ? "default" : "outline"}
-                size="sm" 
-                onClick={() => setIsPaused(!isPaused)}
+          <div className="flex items-center gap-2">
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
               >
-                {isPaused ? (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </>
-                )}
+                <Database className="w-4 h-4 mr-2" />
+                {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
               </Button>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <SignOut className="w-4 h-4 mr-2" />
-                {isDemoMode ? 'Exit Demo' : 'Logout'}
-              </Button>
-            </div>
+            )}
+            <Button 
+              variant={isPaused ? "default" : "outline"}
+              size="sm" 
+              onClick={() => setIsPaused(!isPaused)}
+            >
+              {isPaused ? (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Resume
+                </>
+              ) : (
+                <>
+                  <Pause className="w-4 h-4 mr-2" />
+                  Pause
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <SignOut className="w-4 h-4 mr-2" />
+              {isDemoMode ? 'Exit Demo' : 'Logout'}
+            </Button>
           </div>
         </header>
         
@@ -232,10 +215,24 @@ function App() {
           </Alert>
         )}
         
-        <TotalUsage 
-          currentWatts={currentTotal} 
-          previousWatts={previousTotal}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <TotalUsage 
+            currentWatts={currentTotal} 
+            previousWatts={previousTotal}
+          />
+          <Card className="p-6 border-2 border-primary/30">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Hourly Cost</div>
+            <div className="text-3xl font-bold text-foreground tabular-nums">
+              ${hourlyCost.toFixed(4)}
+            </div>
+          </Card>
+          <Card className="p-6 border-2 border-primary/30">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Est.</div>
+            <div className="text-3xl font-bold text-foreground tabular-nums">
+              ${monthlyCost.toFixed(2)}
+            </div>
+          </Card>
+        </div>
         
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
