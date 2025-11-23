@@ -12,6 +12,7 @@ Configuration (Environment Variables):
     BACKEND_DEBUG     - Enable debug mode (default: true)
     SECRET_KEY        - JWT secret key (default: 'your-secret-key-change-this-in-production')
     ELECTRICITY_RATE  - Rate per kWh in dollars (default: 0.314555)
+    DEVICE_CACHE_TTL  - Device cache time-to-live in seconds (default: 300)
 
 Credentials:
     You can store your Emporia credentials in a .creds.json file:
@@ -32,6 +33,7 @@ Usage:
 API Endpoints:
     POST   /api/auth/login        - Authenticate with Emporia Vue
     GET    /api/devices           - Get list of devices
+    POST   /api/devices/refresh   - Force refresh device cache
     GET    /api/energy/realtime   - Get current energy data
     GET    /api/energy/history    - Get historical energy data
 """
@@ -52,9 +54,49 @@ CORS(app)  # Enable CORS for React frontend
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
+DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
+
+# Device cache
+device_cache = {
+    'devices': None,
+    'timestamp': None
+}
+
+def get_cached_devices():
+    """Get devices from cache or fetch if cache is stale"""
+    global device_cache
+    
+    now = datetime.datetime.now(datetime.UTC)
+    
+    # Check if cache is valid
+    if (device_cache['devices'] is not None and 
+        device_cache['timestamp'] is not None and 
+        (now - device_cache['timestamp']).total_seconds() < DEVICE_CACHE_TTL):
+        print(f"[Cache] Using cached devices (age: {(now - device_cache['timestamp']).total_seconds():.1f}s)")
+        return device_cache['devices']
+    
+    # Cache is stale or empty, fetch new data
+    print(f"[Cache] Cache miss or stale, fetching devices from API")
+    log_emporia_request('vue.get_devices')
+    devices = vue.get_devices()
+    log_devices(devices)
+    
+    # Update cache
+    device_cache['devices'] = devices
+    device_cache['timestamp'] = now
+    print(f"[Cache] Cached {len(devices)} devices")
+    
+    return devices
+
+def invalidate_device_cache():
+    """Invalidate the device cache"""
+    global device_cache
+    device_cache['devices'] = None
+    device_cache['timestamp'] = None
+    print(f"[Cache] Device cache invalidated")
 
 # Print usage data, taken from the example at https://github.com/magico13/PyEmVue
 def log_usage_recursive(usage_dict, info, depth=0):
@@ -268,9 +310,7 @@ def get_devices():
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
     try:
-        log_emporia_request('vue.get_devices')
-        devices = vue.get_devices()
-        log_devices(devices)
+        devices = get_cached_devices()
         device_list = []
         
         for device in devices:
@@ -308,10 +348,8 @@ def get_realtime():
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
     try:
-        # Get all devices
-        log_emporia_request('vue.get_devices')
-        devices = vue.get_devices()
-        log_devices(devices)
+        # Get all devices from cache
+        devices = get_cached_devices()
         device_gids = []
         device_info = {}
         for device in devices:
@@ -393,9 +431,7 @@ def get_history():
     seconds = range_map.get(time_range, 60)
     
     try:
-        log_emporia_request('vue.get_devices')
-        devices = vue.get_devices()
-        log_devices(devices)
+        devices = get_cached_devices()
         device_gids = []
         device_info = {}
         for device in devices:
@@ -447,6 +483,25 @@ def get_history():
         # If historical fetch fails, return empty array
         return jsonify({'dataPoints': []})
 
+@app.route('/api/devices/refresh', methods=['POST'])
+@token_required
+def refresh_devices():
+    """Invalidate device cache and force refresh"""
+    if not authenticated:
+        return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
+    
+    try:
+        invalidate_device_cache()
+        devices = get_cached_devices()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Device cache refreshed',
+            'device_count': len(devices)
+        })
+    except Exception as e:
+        return jsonify({'error': f'Failed to refresh devices: {str(e)}'}), 500
+
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint - server status"""
@@ -479,10 +534,12 @@ if __name__ == '__main__':
     print("=" * 60)
     print(f"Server starting on http://{host}:{port}")
     print(f"Electricity Rate: ${ELECTRICITY_RATE:.6f} per kWh")
+    print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
     print("Endpoints:")
     print("  GET    /                      - Server status")
     print("  POST   /api/auth/login        - Authenticate with credentials")
     print("  GET    /api/devices           - Get device list")
+    print("  POST   /api/devices/refresh   - Force refresh device cache")
     print("  GET    /api/energy/realtime   - Get real-time energy data")
     print("  GET    /api/energy/history    - Get historical energy data")
     print("  GET    /health                - Health check")
