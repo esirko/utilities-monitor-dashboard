@@ -150,7 +150,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .ticks(5)
       .tickFormat((d) => {
         const date = new Date(d as number)
-        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+        return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}:${String(date.getUTCSeconds()).padStart(2, '0')}`
       })
     
     g.append('g')
@@ -203,7 +203,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
         if (index >= 0 && index < data.length) {
           const dataPoint = data[index]
           const date = new Date(dataPoint.timestamp)
-          const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+          const timeStr = `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}:${String(date.getUTCSeconds()).padStart(2, '0')}`
           
           let html = `<div style="font-weight: 600; margin-bottom: 4px;">${timeStr}</div>`
           html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
