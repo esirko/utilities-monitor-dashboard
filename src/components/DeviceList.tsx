@@ -12,7 +12,7 @@ export function DeviceList({ devices }: DeviceListProps) {
   const sortedDevices = [...devices].sort((a, b) => b.watts - a.watts)
   
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {sortedDevices.map((device) => (
         <motion.div
           key={device.id}
@@ -20,24 +20,24 @@ export function DeviceList({ devices }: DeviceListProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <Card className="p-4 border-2 hover:border-primary/50 transition-colors">
-            <div className="flex items-start justify-between gap-4">
+          <Card className="p-3 border-2 hover:border-primary/50 transition-colors">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2">
                   {device.status === 'active' && (
                     <Lightning weight="fill" className="w-4 h-4 text-accent" />
                   )}
                   <h3 className="font-semibold text-sm truncate">{device.name}</h3>
+                  <span className="text-xs text-muted-foreground">· {device.category}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">{device.category}</p>
               </div>
               
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-2xl font-bold tabular-nums">
+                  <span className="text-lg font-bold tabular-nums">
                     {(device.watts / 1000).toFixed(2)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">kW</div>
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">kW</span>
                 </div>
                 
                 <Badge 
@@ -53,7 +53,7 @@ export function DeviceList({ devices }: DeviceListProps) {
               </div>
             </div>
             
-            <div className="mt-3 h-1 bg-secondary rounded-full overflow-hidden">
+            <div className="mt-2 h-1 bg-secondary rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-primary to-accent"
                 initial={{ width: 0 }}
