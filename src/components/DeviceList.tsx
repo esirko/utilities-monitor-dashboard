@@ -9,13 +9,21 @@ interface DeviceListProps {
 }
 
 export function DeviceList({ devices }: DeviceListProps) {
-  const sortedDevices = [...devices].sort((a, b) => b.watts - a.watts)
+  const uniqueDevices = devices.reduce((acc, device) => {
+    const existing = acc.find(d => d.id === device.id)
+    if (!existing) {
+      acc.push(device)
+    }
+    return acc
+  }, [] as Device[])
+  
+  const sortedDevices = [...uniqueDevices].sort((a, b) => b.watts - a.watts)
   
   return (
     <div className="space-y-2">
-      {sortedDevices.map((device) => (
+      {sortedDevices.map((device, index) => (
         <motion.div
-          key={device.id}
+          key={`${device.id}-${index}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}

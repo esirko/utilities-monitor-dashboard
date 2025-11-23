@@ -84,10 +84,16 @@ function App() {
     const latestData = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1] : null
     
     if (dataMode === 'real' && backendDevices.length > 0 && latestData) {
-      return backendDevices.map(device => {
+      const uniqueDevicesMap = new Map<string, any>()
+      backendDevices.forEach(device => {
+        uniqueDevicesMap.set(String(device.id), device)
+      })
+      
+      return Array.from(uniqueDevicesMap.values()).map(device => {
         const watts = latestData.devices[device.id] || 0
         return {
           ...device,
+          id: String(device.id),
           watts,
           status: watts > 10 ? 'active' as const : 'idle' as const
         }
