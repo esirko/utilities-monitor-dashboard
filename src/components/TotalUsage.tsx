@@ -55,7 +55,7 @@ export function TotalUsage({ currentWatts, previousWatts = 0 }: TotalUsageProps)
               className="text-5xl font-bold tabular-nums"
               key={Math.floor(kilowatts)}
             >
-              {kilowatts.toFixed(2)}
+              {kilowatts.toFixed(3)}
             </motion.div>
             <span className="text-2xl text-muted-foreground font-medium">kW</span>
           </div>
