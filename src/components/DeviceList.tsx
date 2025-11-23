@@ -35,7 +35,7 @@ export function DeviceList({ devices }: DeviceListProps) {
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <span className="text-lg font-bold tabular-nums">
-                    {(device.watts / 1000).toFixed(2)}
+                    {(device.watts / 1000).toFixed(3)}
                   </span>
                   <span className="text-xs text-muted-foreground ml-1">kW</span>
                 </div>

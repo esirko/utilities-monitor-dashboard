@@ -163,7 +163,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
     
     const yAxis = d3.axisLeft(yScale)
       .ticks(5)
-      .tickFormat(d => `${(d as number / 1000).toFixed(1)}kW`)
+      .tickFormat(d => `${(d as number / 1000).toFixed(3)}kW`)
     
     g.append('g')
       .call(yAxis)
@@ -206,7 +206,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
           const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
           
           let html = `<div style="font-weight: 600; margin-bottom: 4px;">${timeStr}</div>`
-          html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(2)} kW</div>`
+          html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
           
           tooltip
             .html(html)
