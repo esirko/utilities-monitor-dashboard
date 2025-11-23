@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { DataPoint } from '@/lib/types'
-import { energySimulator } from '@/lib/energySimulator'
 
 interface EnergyChartProps {
   data: DataPoint[]
@@ -28,8 +27,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`)
     
-    const devices = energySimulator.getDevices()
-    const deviceIds = devices.map(d => d.id)
+    const deviceIds = data.length > 0 ? Object.keys(data[0].devices) : []
     
     const expectedInterval = 1000
     const gapThreshold = expectedInterval * 2
