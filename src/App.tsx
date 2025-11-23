@@ -166,10 +166,10 @@ function App() {
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                Energy Monitor
+                Energy Monitor {!isDemoMode && systemName && `- ${systemName}`}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {isDemoMode ? 'Demo Mode - Simulated Data' : `${systemName} - Real-time power consumption tracking with Emporia Vue and pyemvue`}
+                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
               </p>
             </div>
           </div>
