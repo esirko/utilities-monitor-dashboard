@@ -352,6 +352,8 @@ def get_realtime():
                 # Get channel usage if available
                 if hasattr(usage, 'channels') and usage.channels:
                     for channel_num, channel_usage in usage.channels.items():
+                        if channel_num == "1,2,3":
+                            continue
                         if channel_usage and hasattr(channel_usage, 'usage'):
                             channel_watts = (channel_usage.usage or 0) * 1000
                             devices_data[f"{gid}-{channel_num}"] = round(channel_watts, 2)
