@@ -12,6 +12,8 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
+  const lastMousePositionRef = useRef<{ x: number; y: number } | null>(null)
+  const isMouseOverRef = useRef(false)
   
   useEffect(() => {
     if (!svgRef.current || !containerRef.current || data.length === 0) return
@@ -190,6 +192,52 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
     
     const tooltip = tooltipRef.current
     
+    const updateTooltip = (mouseX: number, mouseY: number, offsetX: number, offsetY: number) => {
+      const timestamp = xScale.invert(mouseX)
+      
+      const bisect = d3.bisector<DataPoint, number>(d => d.timestamp).left
+      const index = bisect(data, timestamp)
+      
+      if (index >= 0 && index < data.length) {
+        const dataPoint = data[index]
+        const date = new Date(dataPoint.timestamp)
+        const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+        
+        const stackPoint = stackedData.find((series) => {
+          const point = series[index]
+          if (!point) return false
+          const y0 = yScale(point[0])
+          const y1 = yScale(point[1])
+          return mouseY >= y1 && mouseY <= y0
+        })
+        
+        let html = `<div style="font-weight: 600; margin-bottom: 4px;">${timeStr}</div>`
+        
+        if (stackPoint) {
+          const deviceId = stackPoint.key
+          const deviceWatts = dataPoint.devices[deviceId] || 0
+          const device = energySimulator.getDevice(deviceId)
+          const deviceName = device?.name || deviceId
+          const deviceColor = colorScale(deviceId)
+          
+          html += `<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+            <div style="width: 10px; height: 10px; background: ${deviceColor}; border-radius: 2px;"></div>
+            <span style="font-weight: 600;">${deviceName}</span>
+          </div>`
+          html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600; margin-left: 16px;">${(deviceWatts / 1000).toFixed(3)} kW</div>`
+          html += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid oklch(0.35 0.02 240); color: oklch(0.70 0.02 240);">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
+        } else {
+          html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
+        }
+        
+        tooltip
+          .html(html)
+          .style('opacity', 1)
+          .style('left', `${offsetX + 10}px`)
+          .style('top', `${offsetY - 10}px`)
+      }
+    }
+    
     const overlay = g
       .append('rect')
       .attr('class', 'overlay')
@@ -199,53 +247,25 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .attr('pointer-events', 'all')
       .on('mousemove', function(event) {
         const [mouseX, mouseY] = d3.pointer(event)
-        const timestamp = xScale.invert(mouseX)
-        
-        const bisect = d3.bisector<DataPoint, number>(d => d.timestamp).left
-        const index = bisect(data, timestamp)
-        
-        if (index >= 0 && index < data.length) {
-          const dataPoint = data[index]
-          const date = new Date(dataPoint.timestamp)
-          const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
-          
-          const stackPoint = stackedData.find((series, seriesIndex) => {
-            const point = series[index]
-            if (!point) return false
-            const y0 = yScale(point[0])
-            const y1 = yScale(point[1])
-            return mouseY >= y1 && mouseY <= y0
-          })
-          
-          let html = `<div style="font-weight: 600; margin-bottom: 4px;">${timeStr}</div>`
-          
-          if (stackPoint) {
-            const deviceId = stackPoint.key
-            const deviceWatts = dataPoint.devices[deviceId] || 0
-            const device = energySimulator.getDevice(deviceId)
-            const deviceName = device?.name || deviceId
-            const deviceColor = colorScale(deviceId)
-            
-            html += `<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-              <div style="width: 10px; height: 10px; background: ${deviceColor}; border-radius: 2px;"></div>
-              <span style="font-weight: 600;">${deviceName}</span>
-            </div>`
-            html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600; margin-left: 16px;">${(deviceWatts / 1000).toFixed(3)} kW</div>`
-            html += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid oklch(0.35 0.02 240); color: oklch(0.70 0.02 240);">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
-          } else {
-            html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
-          }
-          
-          tooltip
-            .html(html)
-            .style('opacity', 1)
-            .style('left', `${event.offsetX + 10}px`)
-            .style('top', `${event.offsetY - 10}px`)
-        }
+        lastMousePositionRef.current = { x: mouseX, y: mouseY }
+        isMouseOverRef.current = true
+        updateTooltip(mouseX, mouseY, event.offsetX, event.offsetY)
       })
       .on('mouseout', () => {
+        isMouseOverRef.current = false
+        lastMousePositionRef.current = null
         tooltip.style('opacity', 0)
       })
+    
+    if (isMouseOverRef.current && lastMousePositionRef.current) {
+      const svgRect = svgRef.current?.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
+      if (svgRect && containerRect) {
+        const offsetX = lastMousePositionRef.current.x + margin.left
+        const offsetY = lastMousePositionRef.current.y + margin.top
+        updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
+      }
+    }
   }, [data, height])
   
   return (
