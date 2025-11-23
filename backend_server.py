@@ -275,6 +275,10 @@ def get_devices():
             # Get channels for this device
             channels = device.channels if hasattr(device, 'channels') else []
             
+            # Add main device
+            device_list.append({
+                'id': str(device.device_gid),
+                'name': device.device_name or 'Unknown Device',
                 'category': 'Main',
                 'status': 'active'
             })
