@@ -12,6 +12,7 @@ Configuration (Environment Variables):
     BACKEND_DEBUG     - Enable debug mode (default: true)
     SECRET_KEY        - JWT secret key (default: 'your-secret-key-change-this-in-production')
     ELECTRICITY_RATE  - Rate per kWh in dollars (default: 0.314555)
+    SYSTEM_NAME       - Name of the system/house (default: 'Home')
     DEVICE_CACHE_TTL  - Device cache time-to-live in seconds (default: 300)
 
 Credentials:
@@ -54,6 +55,7 @@ CORS(app)  # Enable CORS for React frontend
 # Configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
 ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
+SYSTEM_NAME = os.environ.get('SYSTEM_NAME', 'Home')
 DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
 vue = PyEmVue()
 authenticated = False
@@ -502,6 +504,15 @@ def refresh_devices():
     except Exception as e:
         return jsonify({'error': f'Failed to refresh devices: {str(e)}'}), 500
 
+@app.route('/api/config', methods=['GET'])
+@token_required
+def get_config():
+    """Get configuration variables (electricity rate, system name, etc.)"""
+    return jsonify({
+        'electricityRate': ELECTRICITY_RATE,
+        'systemName': SYSTEM_NAME
+    })
+
 @app.route('/', methods=['GET'])
 def root():
     """Root endpoint - server status"""
@@ -533,6 +544,7 @@ if __name__ == '__main__':
     print("Energy Monitor Backend Server")
     print("=" * 60)
     print(f"Server starting on http://{host}:{port}")
+    print(f"System Name: {SYSTEM_NAME}")
     print(f"Electricity Rate: ${ELECTRICITY_RATE:.6f} per kWh")
     print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
     print("Endpoints:")
@@ -542,6 +554,7 @@ if __name__ == '__main__':
     print("  POST   /api/devices/refresh   - Force refresh device cache")
     print("  GET    /api/energy/realtime   - Get real-time energy data")
     print("  GET    /api/energy/history    - Get historical energy data")
+    print("  GET    /api/config            - Get configuration (electricity rate, system name)")
     print("  GET    /health                - Health check")
     print("=" * 60)
     print()

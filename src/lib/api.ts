@@ -89,8 +89,11 @@ export const api = {
     return data.dataPoints || []
   },
 
-  async getElectricityRate(): Promise<number> {
-    const data = await fetchWithAuth('/api/config/electricity-rate')
-    return data.rate || 0.314555
+  async getConfig(): Promise<{ electricityRate: number; systemName: string }> {
+    const data = await fetchWithAuth('/api/config')
+    return {
+      electricityRate: data.electricityRate || 0.314555,
+      systemName: data.systemName || 'Home'
+    }
   },
 }

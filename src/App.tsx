@@ -47,6 +47,7 @@ function App() {
   const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
+  const [systemName, setSystemName] = useState<string>('Home')
   
   const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
@@ -69,15 +70,16 @@ function App() {
       }
       fetchDevices()
       
-      const fetchRate = async () => {
+      const fetchConfig = async () => {
         try {
-          const rate = await api.getElectricityRate()
-          setElectricityRate(rate)
+          const config = await api.getConfig()
+          setElectricityRate(config.electricityRate)
+          setSystemName(config.systemName)
         } catch (err) {
-          console.error('Failed to fetch electricity rate from backend:', err)
+          console.error('Failed to fetch config from backend:', err)
         }
       }
-      fetchRate()
+      fetchConfig()
     }
   }, [dataMode, isAuthenticated])
   
@@ -167,7 +169,7 @@ function App() {
                 Energy Monitor
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
+                {isDemoMode ? 'Demo Mode - Simulated Data' : `${systemName} - Real-time power consumption tracking with Emporia Vue and pyemvue`}
               </p>
             </div>
           </div>

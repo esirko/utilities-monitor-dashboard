@@ -1,15 +1,23 @@
-# Electricity Rate Configuration
+# System Configuration
 
 ## Overview
-The backend server now supports a configurable electricity rate through environment variables. This allows users to set their local electricity rate and potentially calculate energy costs.
+The backend server supports configurable system settings through environment variables. This allows users to customize the system name (e.g., "Home", "Office", "Lake House") and electricity rate for their specific deployment.
 
 ## Configuration
 
-### Environment Variable
+### Environment Variables
+
+#### SYSTEM_NAME
+- **Name**: `SYSTEM_NAME`
+- **Description**: The name of the system/house being monitored
+- **Default Value**: `Home`
+- **Format**: String (e.g., "Home", "Office", "Lake House")
+
+#### ELECTRICITY_RATE
 - **Name**: `ELECTRICITY_RATE`
 - **Description**: The rate of electricity in your local currency per kilowatt-hour (kWh)
-- **Default Value**: `0.3243`
-- **Format**: Decimal number (e.g., 0.3243 means $0.3243 per kWh)
+- **Default Value**: `0.314555`
+- **Format**: Decimal number (e.g., 0.314555 means $0.314555 per kWh)
 
 ### Files Created/Modified
 
@@ -23,10 +31,10 @@ The backend server now supports a configurable electricity rate through environm
    - Safe to commit to git (contains no secrets)
 
 3. **`backend_server.py`** (Modified)
-   - Reads `ELECTRICITY_RATE` from environment variables with default of 0.3243
-   - New endpoint: `GET /api/config` - Returns server configuration including electricity rate
-   - Root endpoint (`/`) now includes electricity rate in status response
-   - Server startup message displays the configured electricity rate
+   - Reads `ELECTRICITY_RATE` and `SYSTEM_NAME` from environment variables
+   - New endpoint: `GET /api/config` - Returns server configuration including electricity rate and system name
+   - Root endpoint (`/`) now includes configuration in status response
+   - Server startup message displays the configured values
 
 4. **`BACKEND_INTEGRATION.md`** (Modified)
    - Updated documentation to include the new configuration variable
@@ -35,31 +43,33 @@ The backend server now supports a configurable electricity rate through environm
 
 ## Usage
 
-### Setting the Electricity Rate
+### Setting Configuration Values
 
 **Option 1: Using .env.local file (Recommended)**
 ```bash
 # Copy the example file
-cp .env.local.example .env.local
+cp .env.example .env.local
 
-# Edit .env.local and set your rate
+# Edit .env.local and set your values
+SYSTEM_NAME=Lake House
 ELECTRICITY_RATE=0.15
 ```
 
-**Option 2: Environment Variable**
+**Option 2: Environment Variables**
 ```bash
+export SYSTEM_NAME="Lake House"
 export ELECTRICITY_RATE=0.15
 python backend_server.py
 ```
 
 **Option 3: Inline with Command**
 ```bash
-ELECTRICITY_RATE=0.15 python backend_server.py
+SYSTEM_NAME="Lake House" ELECTRICITY_RATE=0.15 python backend_server.py
 ```
 
-### Accessing the Rate from Frontend
+### Accessing Configuration from Frontend
 
-The electricity rate can be fetched from the backend via:
+The configuration can be fetched from the backend via:
 
 ```javascript
 // GET /api/config (requires authentication)
@@ -69,25 +79,20 @@ const response = await fetch('http://localhost:5001/api/config', {
   }
 })
 const config = await response.json()
-console.log(config.electricityRate) // 0.3243
-```
-
-Or from the public root endpoint:
-```javascript
-// GET / (no authentication required)
-const response = await fetch('http://localhost:5001/')
-const status = await response.json()
-console.log(status.electricityRate) // 0.3243
+console.log(config.systemName)        // "Home" or your custom name
+console.log(config.electricityRate)   // 0.314555 or your custom rate
 ```
 
 ## Future Enhancements
 
 With this configuration in place, you can now:
-1. Calculate real-time energy costs by multiplying watts × time × rate
-2. Display cost information alongside power consumption
-3. Set budget alerts based on spending
-4. Track daily/monthly energy costs
-5. Compare costs across different time periods
+1. Display the system/house name in the dashboard header
+2. Calculate real-time energy costs by multiplying watts × time × rate
+3. Display cost information alongside power consumption
+4. Set budget alerts based on spending
+5. Track daily/monthly energy costs
+6. Compare costs across different time periods
+7. Manage multiple systems/locations with different names and rates
 
 ## Security Note
 
