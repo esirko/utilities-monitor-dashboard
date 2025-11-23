@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { DataPoint } from '@/lib/types'
+import { energySimulator } from '@/lib/energySimulator'
 
 interface EnergyChartProps {
   data: DataPoint[]
@@ -192,7 +193,7 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
       .attr('fill', 'none')
       .attr('pointer-events', 'all')
       .on('mousemove', function(event) {
-        const [mouseX] = d3.pointer(event)
+        const [mouseX, mouseY] = d3.pointer(event)
         const timestamp = xScale.invert(mouseX)
         
         const bisect = d3.bisector<DataPoint, number>(d => d.timestamp).left
@@ -203,8 +204,32 @@ export function EnergyChart({ data, height = 400 }: EnergyChartProps) {
           const date = new Date(dataPoint.timestamp)
           const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
           
+          const stackPoint = stackedData.find((series, seriesIndex) => {
+            const point = series[index]
+            if (!point) return false
+            const y0 = yScale(point[0])
+            const y1 = yScale(point[1])
+            return mouseY >= y1 && mouseY <= y0
+          })
+          
           let html = `<div style="font-weight: 600; margin-bottom: 4px;">${timeStr}</div>`
-          html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
+          
+          if (stackPoint) {
+            const deviceId = stackPoint.key
+            const deviceWatts = dataPoint.devices[deviceId] || 0
+            const device = energySimulator.getDevice(deviceId)
+            const deviceName = device?.name || deviceId
+            const deviceColor = colorScale(deviceId)
+            
+            html += `<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+              <div style="width: 10px; height: 10px; background: ${deviceColor}; border-radius: 2px;"></div>
+              <span style="font-weight: 600;">${deviceName}</span>
+            </div>`
+            html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600; margin-left: 16px;">${(deviceWatts / 1000).toFixed(3)} kW</div>`
+            html += `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid oklch(0.35 0.02 240); color: oklch(0.70 0.02 240);">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
+          } else {
+            html += `<div style="color: oklch(0.85 0.15 95); font-weight: 600;">Total: ${(dataPoint.total / 1000).toFixed(3)} kW</div>`
+          }
           
           tooltip
             .html(html)
