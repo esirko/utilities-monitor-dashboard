@@ -250,15 +250,20 @@ function App() {
           </div>
           
           <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
-            {dataMode === 'real' && isLoadingRealData ? (
-              <div className="absolute inset-0 flex items-center justify-center">
+            <EnergyChart data={dataPoints} devices={devices} height={400} />
+            {dataMode === 'real' && isLoadingRealData && dataPoints.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
                 <div className="text-center">
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
                   <p className="text-sm text-muted-foreground">Loading historical data...</p>
                 </div>
               </div>
-            ) : (
-              <EnergyChart data={dataPoints} devices={devices} height={400} />
+            )}
+            {dataMode === 'real' && isLoadingRealData && dataPoints.length > 0 && (
+              <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
+                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                <p className="text-xs text-muted-foreground">Loading...</p>
+              </div>
             )}
           </div>
         </Card>

@@ -25,7 +25,7 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
   }, [devices])
   
   useEffect(() => {
-    if (!svgRef.current || !containerRef.current || data.length === 0) return
+    if (!svgRef.current || !containerRef.current) return
     
     const container = containerRef.current
     const width = container.clientWidth
@@ -39,6 +39,18 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
     const g = svg
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`)
+    
+    if (data.length === 0) {
+      g.append('text')
+        .attr('x', innerWidth / 2)
+        .attr('y', innerHeight / 2)
+        .attr('text-anchor', 'middle')
+        .attr('fill', 'oklch(0.60 0.02 240)')
+        .attr('font-family', 'JetBrains Mono')
+        .attr('font-size', '14px')
+        .text('Waiting for data...')
+      return
+    }
     
     const deviceIds = data.length > 0 ? Object.keys(data[data.length - 1].devices) : []
     
