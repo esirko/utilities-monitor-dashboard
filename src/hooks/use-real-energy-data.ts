@@ -135,35 +135,32 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
     
     const fetchHistoricalData = async () => {
       isLoadingHistoricalRef.current = true
-      
-      startRealtimePolling()
+      setIsLoading(true)
       
       try {
         const historical = await api.getHistoricalData(timeRange.label)
         const historicalWithTotals = historical.map(calculateTotal)
         
         if (isLoadingHistoricalRef.current) {
-          setDataPoints(prev => {
-            const sortedHistorical = historicalWithTotals.sort((a, b) => a.timestamp - b.timestamp)
-            const mergedData = [...sortedHistorical, ...prev]
-              .sort((a, b) => a.timestamp - b.timestamp)
-            
-            const uniqueData: DataPoint[] = []
-            const seenTimestamps = new Set<number>()
-            
-            for (const point of mergedData) {
-              const roundedTimestamp = Math.floor(point.timestamp / 100) * 100
-              if (!seenTimestamps.has(roundedTimestamp)) {
-                seenTimestamps.add(roundedTimestamp)
-                uniqueData.push(point)
-              }
+          const sortedHistorical = historicalWithTotals.sort((a, b) => a.timestamp - b.timestamp)
+          
+          const uniqueData: DataPoint[] = []
+          const seenTimestamps = new Set<number>()
+          
+          for (const point of sortedHistorical) {
+            const roundedTimestamp = Math.floor(point.timestamp / 100) * 100
+            if (!seenTimestamps.has(roundedTimestamp)) {
+              seenTimestamps.add(roundedTimestamp)
+              uniqueData.push(point)
             }
-            
-            return uniqueData.slice(-maxPoints)
-          })
+          }
+          
+          setDataPoints(uniqueData.slice(-maxPoints))
           
           historicalDataLoadedRef.current = true
           setIsLoading(false)
+          
+          startRealtimePolling()
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -182,6 +179,8 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
         
         historicalDataLoadedRef.current = true
         setIsLoading(false)
+        
+        startRealtimePolling()
       } finally {
         isLoadingHistoricalRef.current = false
       }

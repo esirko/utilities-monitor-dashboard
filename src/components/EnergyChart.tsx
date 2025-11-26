@@ -69,12 +69,11 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
     }
     
     const now = Date.now()
-    const timeWindowMs = (data.length > 0 && data[data.length - 1]) 
-      ? now - data[0].timestamp 
-      : 60000
+    const oldestTimestamp = data.length > 0 ? data[0].timestamp : now - 60000
+    const newestTimestamp = data.length > 0 ? Math.max(data[data.length - 1].timestamp, now) : now
     
     const xScale = d3.scaleLinear()
-      .domain([now - timeWindowMs, now])
+      .domain([oldestTimestamp, newestTimestamp])
       .range([0, innerWidth])
     
     const maxTotal = d3.max(data, d => d.total) || 10000
