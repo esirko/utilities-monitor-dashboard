@@ -138,7 +138,8 @@ def log_usage_compact(usage_dict, info):
     
     collect_usage(usage_dict)
     devices_str = ", ".join(device_summaries)
-    print(f"[Emporia API] RESPONSE < vue.get_device_list_usage: Total={total_kw:.3f}kW [{devices_str}]")
+    log_message = f"[Emporia API] RESPONSE < vue.get_device_list_usage: Total={total_kw:.3f}kW [{devices_str}]"
+    print(log_message[:200])
 
 def log_devices(devices):
     print(f"[Emporia API] RESPONSE < vue.get_devices:")
