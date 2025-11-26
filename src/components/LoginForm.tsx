@@ -101,8 +101,76 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
           </div>
         ) : (
           <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter your Emporia Vue username"
+                  required
+                  autoComplete="username"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    autoComplete="current-password"
+                    disabled={isLoading}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeSlash className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Connecting...' : 'Connect to Emporia Vue'}
+              </Button>
+            </form>
+
             {hasStoredCredentials && (
-              <div className="mb-6">
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or</span>
+                  </div>
+                </div>
+
                 <Button
                   type="button"
                   className="w-full h-auto py-3 flex-col gap-1"
@@ -113,110 +181,39 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
                     'Connecting...'
                   ) : (
                     <>
-                      <div className="flex items-center gap-2">
-                        <Database className="w-4 h-4" />
-                        <span>Connect with Stored Credentials</span>
-                      </div>
+                      <div>Connect with Stored Credentials</div>
                       {storedUsername && (
-                        <span className="text-sm opacity-90">({storedUsername})</span>
+                        <div className="text-sm opacity-90">({storedUsername})</div>
                       )}
                     </>
                   )}
                 </Button>
-                
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or enter new credentials</span>
-                  </div>
-                </div>
-              </div>
+              </>
             )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your Emporia Vue username"
-              required
-              autoComplete="username"
+            
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={onDemoMode}
               disabled={isLoading}
-            />
-          </div>
+            >
+              View Demo
+            </Button>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                autoComplete="current-password"
-                disabled={isLoading}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                tabIndex={-1}
-              >
-                {showPassword ? (
-                  <EyeSlash className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
+            <div className="mt-6 text-center text-xs text-muted-foreground">
+              <p>Demo mode lets you explore with simulated data.</p>
+              <p className="mt-2">Connect to see your real Emporia Vue energy data.</p>
             </div>
-          </div>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Connecting...' : 'Connect to Emporia Vue'}
-          </Button>
-          
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-          
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={onDemoMode}
-            disabled={isLoading}
-          >
-            View Demo
-          </Button>
-        </form>
-
-        <div className="mt-6 text-center text-xs text-muted-foreground">
-          <p>Demo mode lets you explore with simulated data.</p>
-          <p className="mt-2">Connect to see your real Emporia Vue energy data.</p>
-        </div>
           </>
         )}
       </Card>
