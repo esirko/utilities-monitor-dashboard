@@ -105,12 +105,23 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
               <div className="mb-6">
                 <Button
                   type="button"
-                  className="w-full"
+                  className="w-full h-auto py-3 flex-col gap-1"
                   onClick={handleConnectWithStored}
                   disabled={isLoading}
                 >
-                  <Database className="w-4 h-4 mr-2" />
-                  {isLoading ? 'Connecting...' : `Connect with Stored Credentials${storedUsername ? ` (${storedUsername})` : ''}`}
+                  {isLoading ? (
+                    'Connecting...'
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Database className="w-4 h-4" />
+                        <span>Connect with Stored Credentials</span>
+                      </div>
+                      {storedUsername && (
+                        <span className="text-sm opacity-90">({storedUsername})</span>
+                      )}
+                    </>
+                  )}
                 </Button>
                 
                 <div className="relative my-6">
