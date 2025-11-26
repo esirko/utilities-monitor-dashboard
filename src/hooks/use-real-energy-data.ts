@@ -103,7 +103,56 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
         clearInterval(intervalRef.current)
       }
     }
-  }, [timeRange, useRealData, isPaused])
+  }, [timeRange, useRealData])
+  
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+    }
+    
+    if (!isPaused && useRealData) {
+      const maxPoints = timeRange.seconds
+      
+      const calculateTotal = (dataPoint: DataPoint): DataPoint => {
+        const total = Object.values(dataPoint.devices).reduce((sum, watts) => sum + watts, 0)
+        return {
+          ...dataPoint,
+          total
+        }
+      }
+      
+      const fetchRealtimeData = async () => {
+        try {
+          const newPoint = await api.getRealtimeData()
+          const pointWithTotal = calculateTotal(newPoint)
+          
+          setDataPoints(prev => {
+            const updated = [...prev, pointWithTotal]
+            return updated.slice(-maxPoints)
+          })
+          
+          setError(null)
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setError(err.message)
+          } else {
+            setError('Failed to fetch real-time data')
+          }
+          console.error('Error fetching real-time data:', err)
+        }
+      }
+      
+      intervalRef.current = window.setInterval(() => {
+        fetchRealtimeData()
+      }, timeRange.updateInterval)
+    }
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isPaused, useRealData, timeRange])
   
   return { dataPoints, error }
 }
