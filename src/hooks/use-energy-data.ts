@@ -7,6 +7,7 @@ export function useEnergyData(timeRange: TimeRange, isPaused: boolean = false) {
   const startTimeRef = useRef(Date.now())
   const animationFrameRef = useRef<number | undefined>(undefined)
   const lastUpdateRef = useRef<number>(Date.now())
+  const lastScrollRef = useRef<number>(Date.now())
   
   useEffect(() => {
     startTimeRef.current = Date.now()
@@ -22,20 +23,27 @@ export function useEnergyData(timeRange: TimeRange, isPaused: boolean = false) {
     const maxPoints = timeRange.seconds
     
     const update = () => {
-      if (!isPaused) {
-        const now = Date.now()
-        const timeSinceLastUpdate = now - lastUpdateRef.current
+      const now = Date.now()
+      const timeSinceLastUpdate = now - lastUpdateRef.current
+      const timeSinceLastScroll = now - lastScrollRef.current
+      
+      if (timeSinceLastUpdate >= timeRange.updateInterval && !isPaused) {
+        lastUpdateRef.current = now
+        lastScrollRef.current = now
         
-        if (timeSinceLastUpdate >= timeRange.updateInterval) {
-          lastUpdateRef.current = now
-          
-          const newPoint = energySimulator.generateDataPoint(now)
-          
-          setDataPoints(prev => {
-            const updated = [...prev, newPoint]
-            return updated.slice(-maxPoints)
-          })
-        }
+        const newPoint = energySimulator.generateDataPoint(now)
+        
+        setDataPoints(prev => {
+          const updated = [...prev, newPoint]
+          return updated.slice(-maxPoints)
+        })
+      } else if (timeSinceLastScroll >= timeRange.updateInterval && isPaused) {
+        lastScrollRef.current = now
+        
+        setDataPoints(prev => {
+          const oldestTime = now - (timeRange.seconds * 1000)
+          return prev.filter(point => point.timestamp > oldestTime)
+        })
       }
       
       animationFrameRef.current = requestAnimationFrame(update)

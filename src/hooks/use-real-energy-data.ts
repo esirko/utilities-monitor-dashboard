@@ -9,12 +9,16 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
   const [error, setError] = useState<string | null>(null)
   const startTimeRef = useRef(Date.now())
   const intervalRef = useRef<number | undefined>(undefined)
+  const scrollIntervalRef = useRef<number | undefined>(undefined)
   const lastUpdateRef = useRef<number>(Date.now())
   const lastToastRef = useRef<number>(0)
   
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
+    }
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current)
     }
     
     if (!useRealData) {
@@ -40,11 +44,22 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
             return updated.slice(-maxPoints)
           })
         }, timeRange.updateInterval)
+      } else {
+        scrollIntervalRef.current = window.setInterval(() => {
+          const now = Date.now()
+          setDataPoints(prev => {
+            const oldestTime = now - (timeRange.seconds * 1000)
+            return prev.filter(point => point.timestamp > oldestTime)
+          })
+        }, timeRange.updateInterval)
       }
       
       return () => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
+        }
+        if (scrollIntervalRef.current) {
+          clearInterval(scrollIntervalRef.current)
         }
       }
     }
@@ -116,11 +131,22 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
       intervalRef.current = window.setInterval(() => {
         fetchRealtimeData()
       }, timeRange.updateInterval)
+    } else {
+      scrollIntervalRef.current = window.setInterval(() => {
+        const now = Date.now()
+        setDataPoints(prev => {
+          const oldestTime = now - (timeRange.seconds * 1000)
+          return prev.filter(point => point.timestamp > oldestTime)
+        })
+      }, timeRange.updateInterval)
     }
     
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+      }
+      if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current)
       }
     }
   }, [timeRange, useRealData, isPaused])
