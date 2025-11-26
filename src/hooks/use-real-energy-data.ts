@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { DataPoint, TimeRange } from '@/lib/types'
 import { energySimulator } from '@/lib/energySimulator'
 import { api, ApiError } from '@/lib/api'
@@ -8,13 +8,33 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
-  const startTimeRef = useRef(Date.now())
   const intervalRef = useRef<number | undefined>(undefined)
   const scrollIntervalRef = useRef<number | undefined>(undefined)
-  const lastUpdateRef = useRef<number>(Date.now())
   const lastToastRef = useRef<number>(0)
   const isLoadingHistoricalRef = useRef<boolean>(false)
   const historicalDataLoadedRef = useRef<boolean>(false)
+  
+  const calculateTotal = useCallback((dataPoint: DataPoint): DataPoint => {
+    const total = Object.values(dataPoint.devices).reduce((sum, watts) => sum + watts, 0)
+    return {
+      ...dataPoint,
+      total
+    }
+  }, [])
+  
+  const mergeAndSortDataPoints = useCallback((existing: DataPoint[], incoming: DataPoint[]): DataPoint[] => {
+    const allPoints = [...existing, ...incoming]
+    const uniqueMap = new Map<number, DataPoint>()
+    
+    allPoints.forEach(point => {
+      const roundedTimestamp = Math.floor(point.timestamp / 100) * 100
+      if (!uniqueMap.has(roundedTimestamp) || uniqueMap.get(roundedTimestamp)!.timestamp < point.timestamp) {
+        uniqueMap.set(roundedTimestamp, point)
+      }
+    })
+    
+    return Array.from(uniqueMap.values()).sort((a, b) => a.timestamp - b.timestamp)
+  }, [])
   
   useEffect(() => {
     if (intervalRef.current) {
@@ -26,11 +46,10 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
     
     historicalDataLoadedRef.current = false
     isLoadingHistoricalRef.current = false
+    setDataPoints([])
     setIsLoading(true)
     
     if (!useRealData) {
-      startTimeRef.current = Date.now()
-      
       const initialPoints: DataPoint[] = []
       const now = Date.now()
       for (let i = timeRange.seconds; i > 0; i--) {
@@ -48,7 +67,7 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
           const newPoint = energySimulator.generateDataPoint(now)
           
           setDataPoints(prev => {
-            const updated = [...prev, newPoint]
+            const updated = mergeAndSortDataPoints(prev, [newPoint])
             return updated.slice(-maxPoints)
           })
         }, timeRange.updateInterval)
@@ -75,28 +94,16 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
     setError(null)
     const maxPoints = timeRange.seconds
     
-    const calculateTotal = (dataPoint: DataPoint): DataPoint => {
-      const total = Object.values(dataPoint.devices).reduce((sum, watts) => sum + watts, 0)
-      return {
-        ...dataPoint,
-        total
-      }
-    }
-    
     const fetchRealtimeData = async () => {
       try {
         const newPoint = await api.getRealtimeData()
         const pointWithTotal = calculateTotal(newPoint)
         
         setDataPoints(prev => {
-          const lastPoint = prev[prev.length - 1]
-          if (lastPoint && Math.abs(lastPoint.timestamp - pointWithTotal.timestamp) < 500) {
-            return prev
-          }
-          
-          const updated = [...prev, pointWithTotal]
-          const sorted = updated.sort((a, b) => a.timestamp - b.timestamp)
-          return sorted.slice(-maxPoints)
+          const updated = mergeAndSortDataPoints(prev, [pointWithTotal])
+          const sliced = updated.slice(-maxPoints)
+          console.log(`[useRealEnergyData] Added realtime point at ${new Date(pointWithTotal.timestamp).toLocaleTimeString()}, total points: ${sliced.length}`)
+          return sliced
         })
         
         setError(null)
@@ -142,20 +149,12 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
         const historicalWithTotals = historical.map(calculateTotal)
         
         if (isLoadingHistoricalRef.current) {
-          const sortedHistorical = historicalWithTotals.sort((a, b) => a.timestamp - b.timestamp)
-          
-          const uniqueData: DataPoint[] = []
-          const seenTimestamps = new Set<number>()
-          
-          for (const point of sortedHistorical) {
-            const roundedTimestamp = Math.floor(point.timestamp / 100) * 100
-            if (!seenTimestamps.has(roundedTimestamp)) {
-              seenTimestamps.add(roundedTimestamp)
-              uniqueData.push(point)
-            }
-          }
-          
-          setDataPoints(uniqueData.slice(-maxPoints))
+          setDataPoints(prev => {
+            const merged = mergeAndSortDataPoints(prev, historicalWithTotals)
+            const sliced = merged.slice(-maxPoints)
+            console.log(`[useRealEnergyData] Loaded ${historicalWithTotals.length} historical points, merged to ${merged.length}, keeping ${sliced.length}`)
+            return sliced
+          })
           
           historicalDataLoadedRef.current = true
           setIsLoading(false)
@@ -198,7 +197,7 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
         clearInterval(scrollIntervalRef.current)
       }
     }
-  }, [timeRange, useRealData, isPaused])
+  }, [timeRange, useRealData, isPaused, calculateTotal, mergeAndSortDataPoints])
   
   return { dataPoints, error, isLoading }
 }

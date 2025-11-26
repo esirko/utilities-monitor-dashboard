@@ -53,6 +53,15 @@ function App() {
   const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
   useEffect(() => {
+    console.log(`[App] Data mode: ${dataMode}, Data points: ${dataPoints.length}, Range: ${selectedRange}`)
+    if (dataPoints.length > 0) {
+      const oldest = new Date(dataPoints[0].timestamp).toLocaleTimeString()
+      const newest = new Date(dataPoints[dataPoints.length - 1].timestamp).toLocaleTimeString()
+      console.log(`[App] Data range: ${oldest} to ${newest}`)
+    }
+  }, [dataPoints, dataMode, selectedRange])
+  
+  useEffect(() => {
     if (isAuthenticated && dataMode === 'demo') {
       setDataMode('real')
     }

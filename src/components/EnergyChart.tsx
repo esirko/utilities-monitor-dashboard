@@ -27,6 +27,8 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return
     
+    console.log(`[EnergyChart] Rendering with ${data.length} data points`)
+    
     const container = containerRef.current
     const width = container.clientWidth
     const margin = { top: 20, right: 20, bottom: 40, left: 60 }
@@ -41,6 +43,7 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
       .attr('transform', `translate(${margin.left},${margin.top})`)
     
     if (data.length === 0) {
+      console.log('[EnergyChart] No data to display')
       g.append('text')
         .attr('x', innerWidth / 2)
         .attr('y', innerHeight / 2)
