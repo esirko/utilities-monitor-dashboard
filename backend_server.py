@@ -35,6 +35,7 @@ Usage:
 API Endpoints:
     POST   /api/auth/login          - Authenticate with Emporia Vue
     POST   /api/auth/reauthenticate - Re-authenticate using stored credentials
+    POST   /api/auth/connect-stored - Connect using stored credentials (for login screen)
     GET    /api/devices             - Get list of devices
     POST   /api/devices/refresh     - Force refresh device cache
     GET    /api/energy/realtime     - Get current energy data
@@ -391,6 +392,66 @@ def reauthenticate():
             'message': f'Re-authentication failed: {str(e)}'
         }), 401
 
+@app.route('/api/auth/connect-stored', methods=['POST'])
+def connect_with_stored():
+    """Connect using stored credentials from .creds.json (for login screen)"""
+    global authenticated, credentials_username
+    
+    print("[Connect-Stored] Connection with stored credentials requested")
+    
+    username, password = load_credentials()
+    
+    if not username or not password:
+        print("[Connect-Stored] ✗ No stored credentials available")
+        return jsonify({
+            'success': False,
+            'message': 'No stored credentials available'
+        }), 401
+    
+    try:
+        print(f"[Connect-Stored] Attempting to connect with stored credentials for {username}...")
+        log_emporia_request('vue.login', username=username, password=password)
+        response = vue.login(username=username, password=password)
+        log_emporia_response_full_json('vue.login', response)
+        
+        if response:
+            authenticated = True
+            credentials_username = username
+            
+            # Invalidate device cache after authentication
+            invalidate_device_cache()
+            
+            # Generate new JWT token
+            token = jwt.encode({
+                'username': username,
+                'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+            }, SECRET_KEY, algorithm='HS256')
+            
+            print(f"[Connect-Stored] ✓ Connection successful for {username}")
+            
+            return jsonify({
+                'success': True,
+                'token': token,
+                'message': 'Connected successfully with stored credentials'
+            })
+        else:
+            authenticated = False
+            credentials_username = None
+            print("[Connect-Stored] ✗ Connection failed: Invalid credentials")
+            return jsonify({
+                'success': False,
+                'message': 'Connection failed: Invalid credentials in .creds.json'
+            }), 401
+        
+    except Exception as e:
+        authenticated = False
+        credentials_username = None
+        print(f"[Connect-Stored] ✗ Connection failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Connection failed: {str(e)}'
+        }), 401
+
 @app.route('/api/devices', methods=['GET'])
 @token_required
 def get_devices():
@@ -655,12 +716,16 @@ def root():
             'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
         }, SECRET_KEY, algorithm='HS256')
     
+    username, password = load_credentials()
+    has_stored_credentials = bool(username and password)
+    
     return jsonify({
         'message': 'Energy Monitor Backend Server is running',
         'status': 'up',
         'authenticated': authenticated,
         'username': credentials_username if authenticated else None,
         'token': token,
+        'hasStoredCredentials': has_stored_credentials,
         'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
     })
 
@@ -692,6 +757,7 @@ if __name__ == '__main__':
     print("  GET    /                        - Server status")
     print("  POST   /api/auth/login          - Authenticate with credentials")
     print("  POST   /api/auth/reauthenticate - Re-authenticate using stored credentials")
+    print("  POST   /api/auth/connect-stored - Connect using stored credentials (for login screen)")
     print("  GET    /api/devices             - Get device list")
     print("  POST   /api/devices/refresh     - Force refresh device cache")
     print("  GET    /api/energy/realtime     - Get real-time energy data")
