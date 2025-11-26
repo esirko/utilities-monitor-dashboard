@@ -768,8 +768,4 @@ if __name__ == '__main__':
     print("=" * 60)
     print()
     
-    # Auto-authenticate if credentials are available
-    auto_authenticate()
-    print()
-    
     app.run(host=host, port=port, debug=debug)
