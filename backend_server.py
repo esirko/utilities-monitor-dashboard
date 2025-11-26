@@ -33,11 +33,12 @@ Usage:
     BACKEND_PORT=8000 SECRET_KEY=my-secret python backend_server.py
 
 API Endpoints:
-    POST   /api/auth/login        - Authenticate with Emporia Vue
-    GET    /api/devices           - Get list of devices
-    POST   /api/devices/refresh   - Force refresh device cache
-    GET    /api/energy/realtime   - Get current energy data
-    GET    /api/energy/history    - Get historical energy data
+    POST   /api/auth/login          - Authenticate with Emporia Vue
+    POST   /api/auth/reauthenticate - Re-authenticate using stored credentials
+    GET    /api/devices             - Get list of devices
+    POST   /api/devices/refresh     - Force refresh device cache
+    GET    /api/energy/realtime     - Get current energy data
+    GET    /api/energy/history      - Get historical energy data
 """
 
 from flask import Flask, request, jsonify
@@ -330,10 +331,72 @@ def login():
             'message': f'Authentication failed: {str(e)}'
         }), 401
 
+@app.route('/api/auth/reauthenticate', methods=['POST'])
+def reauthenticate():
+    """Re-authenticate using stored credentials from .creds.json"""
+    global authenticated, credentials_username
+    
+    print("[Re-Auth] Re-authentication requested")
+    
+    username, password = load_credentials()
+    
+    if not username or not password:
+        print("[Re-Auth] ✗ No stored credentials available")
+        return jsonify({
+            'success': False,
+            'message': 'No stored credentials available for re-authentication'
+        }), 401
+    
+    try:
+        print(f"[Re-Auth] Attempting to re-authenticate with Emporia API for {username}...")
+        log_emporia_request('vue.login', username=username, password=password)
+        response = vue.login(username=username, password=password)
+        log_emporia_response_full_json('vue.login', response)
+        
+        if response:
+            authenticated = True
+            credentials_username = username
+            
+            # Invalidate device cache after re-authentication
+            invalidate_device_cache()
+            
+            # Generate new JWT token
+            token = jwt.encode({
+                'username': username,
+                'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+            }, SECRET_KEY, algorithm='HS256')
+            
+            print(f"[Re-Auth] ✓ Re-authentication successful for {username}")
+            
+            return jsonify({
+                'success': True,
+                'token': token,
+                'message': 'Re-authentication successful'
+            })
+        else:
+            authenticated = False
+            credentials_username = None
+            print("[Re-Auth] ✗ Re-authentication failed: Invalid credentials")
+            return jsonify({
+                'success': False,
+                'message': 'Re-authentication failed: Invalid credentials'
+            }), 401
+        
+    except Exception as e:
+        authenticated = False
+        credentials_username = None
+        print(f"[Re-Auth] ✗ Re-authentication failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Re-authentication failed: {str(e)}'
+        }), 401
+
 @app.route('/api/devices', methods=['GET'])
 @token_required
 def get_devices():
     """Get list of all devices"""
+    global authenticated, credentials_username
+    
     if not authenticated:
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
@@ -366,12 +429,25 @@ def get_devices():
         return jsonify({'devices': device_list})
         
     except Exception as e:
-        return jsonify({'error': f'Failed to get devices: {str(e)}'}), 500
+        error_message = str(e)
+        print(f"[Error] Failed to get devices: {error_message}")
+        
+        # Check if this is an authentication error from Emporia API
+        if '401' in error_message or 'Unauthorized' in error_message or 'authentication' in error_message.lower():
+            print("[Error] Detected Emporia API authentication failure, invalidating local auth state")
+            authenticated = False
+            credentials_username = None
+            invalidate_device_cache()
+            return jsonify({'error': 'Emporia API authentication expired', 'needsReauth': True}), 401
+        
+        return jsonify({'error': f'Failed to get devices: {error_message}'}), 500
 
 @app.route('/api/energy/realtime', methods=['GET'])
 @token_required
 def get_realtime():
     """Get real-time energy consumption data"""
+    global authenticated, credentials_username
+    
     if not authenticated:
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
@@ -440,12 +516,25 @@ def get_realtime():
         })
         
     except Exception as e:
-        return jsonify({'error': f'Failed to get real-time data: {str(e)}'}), 500
+        error_message = str(e)
+        print(f"[Error] Failed to get real-time data: {error_message}")
+        
+        # Check if this is an authentication error from Emporia API
+        if '401' in error_message or 'Unauthorized' in error_message or 'authentication' in error_message.lower():
+            print("[Error] Detected Emporia API authentication failure, invalidating local auth state")
+            authenticated = False
+            credentials_username = None
+            invalidate_device_cache()
+            return jsonify({'error': 'Emporia API authentication expired', 'needsReauth': True}), 401
+        
+        return jsonify({'error': f'Failed to get real-time data: {error_message}'}), 500
 
 @app.route('/api/energy/history', methods=['GET'])
 @token_required
 def get_history():
     """Get historical energy data"""
+    global authenticated, credentials_username
+    
     if not authenticated:
         return jsonify({'error': 'Not authenticated with Emporia Vue'}), 401
     
@@ -514,6 +603,17 @@ def get_history():
         return jsonify({'dataPoints': data_points})
         
     except Exception as e:
+        error_message = str(e)
+        print(f"[Error] Failed to get historical data: {error_message}")
+        
+        # Check if this is an authentication error from Emporia API
+        if '401' in error_message or 'Unauthorized' in error_message or 'authentication' in error_message.lower():
+            print("[Error] Detected Emporia API authentication failure, invalidating local auth state")
+            authenticated = False
+            credentials_username = None
+            invalidate_device_cache()
+            return jsonify({'error': 'Emporia API authentication expired', 'needsReauth': True}), 401
+        
         # If historical fetch fails, return empty array
         return jsonify({'dataPoints': []})
 
@@ -589,14 +689,15 @@ if __name__ == '__main__':
     print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
     print(f"Verbose Logging: {'Enabled' if VERBOSE_LOGGING else 'Disabled'}")
     print("Endpoints:")
-    print("  GET    /                      - Server status")
-    print("  POST   /api/auth/login        - Authenticate with credentials")
-    print("  GET    /api/devices           - Get device list")
-    print("  POST   /api/devices/refresh   - Force refresh device cache")
-    print("  GET    /api/energy/realtime   - Get real-time energy data")
-    print("  GET    /api/energy/history    - Get historical energy data")
-    print("  GET    /api/config            - Get configuration (electricity rate, system name)")
-    print("  GET    /health                - Health check")
+    print("  GET    /                        - Server status")
+    print("  POST   /api/auth/login          - Authenticate with credentials")
+    print("  POST   /api/auth/reauthenticate - Re-authenticate using stored credentials")
+    print("  GET    /api/devices             - Get device list")
+    print("  POST   /api/devices/refresh     - Force refresh device cache")
+    print("  GET    /api/energy/realtime     - Get real-time energy data")
+    print("  GET    /api/energy/history      - Get historical energy data")
+    print("  GET    /api/config              - Get configuration (electricity rate, system name)")
+    print("  GET    /health                  - Health check")
     print("=" * 60)
     print()
     

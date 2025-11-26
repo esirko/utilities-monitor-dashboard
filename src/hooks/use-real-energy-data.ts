@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { DataPoint, TimeRange } from '@/lib/types'
 import { energySimulator } from '@/lib/energySimulator'
 import { api, ApiError } from '@/lib/api'
+import { toast } from 'sonner'
 
 export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = true, isPaused: boolean = false) {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
@@ -9,6 +10,7 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
   const startTimeRef = useRef(Date.now())
   const intervalRef = useRef<number | undefined>(undefined)
   const lastUpdateRef = useRef<number>(Date.now())
+  const lastToastRef = useRef<number>(0)
   
   useEffect(() => {
     if (intervalRef.current) {
@@ -66,6 +68,13 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message)
+          if (err.status === 401) {
+            const now = Date.now()
+            if (now - lastToastRef.current > 10000) {
+              toast.error('Authentication expired, attempting to reconnect...')
+              lastToastRef.current = now
+            }
+          }
         } else {
           setError('Failed to fetch historical data')
         }
@@ -89,6 +98,13 @@ export function useRealEnergyData(timeRange: TimeRange, useRealData: boolean = t
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message)
+          if (err.status === 401) {
+            const now = Date.now()
+            if (now - lastToastRef.current > 10000) {
+              toast.error('Authentication expired, attempting to reconnect...')
+              lastToastRef.current = now
+            }
+          }
         } else {
           setError('Failed to fetch real-time data')
         }

@@ -1,4 +1,5 @@
 import { Device, DataPoint } from './types'
+import { toast } from 'sonner'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173'
 
@@ -13,7 +14,78 @@ export class ApiError extends Error {
   }
 }
 
-async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
+let reAuthInProgress = false
+let reAuthAttemptCount = 0
+let lastReAuthAttempt = 0
+const MAX_REAUTH_ATTEMPTS = 3
+const REAUTH_BACKOFF_MS = 5000
+
+async function attemptReAuthentication(): Promise<boolean> {
+  const now = Date.now()
+  
+  if (reAuthInProgress) {
+    console.log('[API] Re-authentication already in progress, skipping...')
+    return false
+  }
+  
+  if (reAuthAttemptCount >= MAX_REAUTH_ATTEMPTS) {
+    const timeSinceLastAttempt = now - lastReAuthAttempt
+    if (timeSinceLastAttempt < REAUTH_BACKOFF_MS * Math.pow(2, reAuthAttemptCount - MAX_REAUTH_ATTEMPTS)) {
+      console.log('[API] Re-authentication rate limited, backing off...')
+      return false
+    }
+    reAuthAttemptCount = 0
+  }
+  
+  reAuthInProgress = true
+  lastReAuthAttempt = now
+  reAuthAttemptCount++
+  
+  try {
+    console.log(`[API] Attempting automatic re-authentication (attempt ${reAuthAttemptCount}/${MAX_REAUTH_ATTEMPTS})...`)
+    
+    const response = await fetch(`${API_URL}/api/auth/reauthenticate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    if (!response.ok) {
+      console.error('[API] Re-authentication failed:', response.status)
+      if (reAuthAttemptCount >= MAX_REAUTH_ATTEMPTS) {
+        toast.error('Failed to reconnect. Please refresh the page and log in again.')
+      }
+      return false
+    }
+    
+    const data = await response.json()
+    
+    if (data.success && data.token) {
+      localStorage.setItem('auth_token', data.token)
+      console.log('[API] ✓ Re-authentication successful')
+      reAuthAttemptCount = 0
+      toast.success('Connection restored successfully')
+      return true
+    }
+    
+    console.error('[API] Re-authentication failed: Invalid response')
+    if (reAuthAttemptCount >= MAX_REAUTH_ATTEMPTS) {
+      toast.error('Failed to reconnect. Please refresh the page and log in again.')
+    }
+    return false
+  } catch (error) {
+    console.error('[API] Re-authentication error:', error)
+    if (reAuthAttemptCount >= MAX_REAUTH_ATTEMPTS) {
+      toast.error('Failed to reconnect. Please refresh the page and log in again.')
+    }
+    return false
+  } finally {
+    reAuthInProgress = false
+  }
+}
+
+async function fetchWithAuth(endpoint: string, options: RequestInit = {}, retryOn401: boolean = true) {
   const token = localStorage.getItem('auth_token')
   
   const headers: HeadersInit = {
@@ -32,6 +104,20 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
+    
+    if (response.status === 401 && retryOn401 && !endpoint.includes('/auth/')) {
+      console.log('[API] Received 401 error, attempting re-authentication...')
+      
+      const reAuthSuccess = await attemptReAuthentication()
+      
+      if (reAuthSuccess) {
+        console.log('[API] Re-authentication succeeded, retrying original request...')
+        return fetchWithAuth(endpoint, options, false)
+      } else {
+        console.error('[API] Re-authentication failed, request cannot be retried')
+      }
+    }
+    
     throw new ApiError(
       errorData.message || errorData.error || 'API request failed',
       response.status,
