@@ -724,7 +724,7 @@ def root():
         'message': 'Energy Monitor Backend Server is running',
         'status': 'up',
         'authenticated': authenticated,
-        'username': credentials_username if authenticated else None,
+        'username': credentials_username if authenticated else username,
         'token': token,
         'hasStoredCredentials': has_stored_credentials,
         'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
