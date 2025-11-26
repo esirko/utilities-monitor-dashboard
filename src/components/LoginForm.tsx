@@ -19,6 +19,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false)
+  const [storedUsername, setStoredUsername] = useState<string | null>(null)
   const [isCheckingCredentials, setIsCheckingCredentials] = useState(true)
 
   useEffect(() => {
@@ -27,9 +28,11 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
       try {
         const authStatus = await api.checkBackendAuth()
         setHasStoredCredentials(authStatus.hasStoredCredentials || false)
+        setStoredUsername(authStatus.username)
       } catch (error) {
         console.error('Failed to check for stored credentials:', error)
         setHasStoredCredentials(false)
+        setStoredUsername(null)
       } finally {
         setIsCheckingCredentials(false)
       }
@@ -107,7 +110,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
                   disabled={isLoading}
                 >
                   <Database className="w-4 h-4 mr-2" />
-                  {isLoading ? 'Connecting...' : 'Connect with Stored Credentials'}
+                  {isLoading ? 'Connecting...' : `Connect with Stored Credentials${storedUsername ? ` (${storedUsername})` : ''}`}
                 </Button>
                 
                 <div className="relative my-6">
