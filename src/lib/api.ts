@@ -183,21 +183,48 @@ export const api = {
     }
   },
 
-  async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string }> {
+  async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string; hasStoredCredentials?: boolean }> {
     try {
       const response = await fetch(`${API_URL}/`)
       if (!response.ok) {
-        return { authenticated: false, username: null }
+        return { authenticated: false, username: null, hasStoredCredentials: false }
       }
       const data = await response.json()
       return {
         authenticated: data.authenticated || false,
         username: data.username || null,
-        token: data.token || undefined
+        token: data.token || undefined,
+        hasStoredCredentials: data.hasStoredCredentials || false
       }
     } catch (error) {
       console.error('Failed to check backend authentication status:', error)
-      return { authenticated: false, username: null }
+      return { authenticated: false, username: null, hasStoredCredentials: false }
+    }
+  },
+
+  async connectWithStoredCredentials(): Promise<{ success: boolean; token?: string; message?: string }> {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/connect-stored`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new ApiError(data.message || 'Failed to connect with stored credentials', response.status, data)
+      }
+      
+      if (data.success && data.token) {
+        localStorage.setItem('auth_token', data.token)
+      }
+      
+      return data
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+      throw new ApiError('Failed to connect to server. Make sure the backend is running.')
     }
   },
 }

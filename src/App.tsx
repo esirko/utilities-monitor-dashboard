@@ -17,35 +17,12 @@ import { Lightning, ChartLine, SignOut, Database, Pause, Play } from '@phosphor-
 type DataMode = 'demo' | 'real'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(api.isAuthenticated())
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(false)
   const [dataMode, setDataMode] = useState<DataMode>('demo')
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const [isPaused, setIsPaused] = useState(false)
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const timeRange = TIME_RANGES[selectedRange]
-  
-  useEffect(() => {
-    const checkBackendAuth = async () => {
-      setIsCheckingAuth(true)
-      try {
-        const authStatus = await api.checkBackendAuth()
-        if (authStatus.authenticated && authStatus.token) {
-          localStorage.setItem('auth_token', authStatus.token)
-          setIsAuthenticated(true)
-          setIsDemoMode(false)
-          setDataMode('real')
-          console.log(`Backend is already authenticated as ${authStatus.username}`)
-        }
-      } catch (error) {
-        console.error('Failed to check backend auth:', error)
-      } finally {
-        setIsCheckingAuth(false)
-      }
-    }
-    
-    checkBackendAuth()
-  }, [])
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -173,21 +150,6 @@ function App() {
     setIsDemoMode(true)
     setDataMode('demo')
     setIsPaused(false)
-  }
-  
-  if (isCheckingAuth) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="flex items-center gap-3 justify-center">
-            <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
-              <Lightning weight="fill" className="w-8 h-8 text-primary" />
-            </div>
-          </div>
-          <p className="text-muted-foreground">Checking authentication status...</p>
-        </div>
-      </div>
-    )
   }
   
   if (!isAuthenticated && !isDemoMode) {

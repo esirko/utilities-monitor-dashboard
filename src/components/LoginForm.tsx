@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Lightning, Eye, EyeSlash } from '@phosphor-icons/react'
+import { Lightning, Eye, EyeSlash, Database } from '@phosphor-icons/react'
 import { api, ApiError } from '@/lib/api'
 
 interface LoginFormProps {
@@ -18,6 +18,25 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [hasStoredCredentials, setHasStoredCredentials] = useState(false)
+  const [isCheckingCredentials, setIsCheckingCredentials] = useState(true)
+
+  useEffect(() => {
+    const checkStoredCredentials = async () => {
+      setIsCheckingCredentials(true)
+      try {
+        const authStatus = await api.checkBackendAuth()
+        setHasStoredCredentials(authStatus.hasStoredCredentials || false)
+      } catch (error) {
+        console.error('Failed to check for stored credentials:', error)
+        setHasStoredCredentials(false)
+      } finally {
+        setIsCheckingCredentials(false)
+      }
+    }
+    
+    checkStoredCredentials()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,6 +46,28 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
     try {
       await api.login(username, password)
       onLoginSuccess()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('Failed to connect to server. Make sure the backend is running.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleConnectWithStored = async () => {
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const result = await api.connectWithStoredCredentials()
+      if (result.success) {
+        onLoginSuccess()
+      } else {
+        setError(result.message || 'Failed to connect with stored credentials')
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message)
@@ -51,7 +92,36 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {isCheckingCredentials ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">Checking for stored credentials...</p>
+          </div>
+        ) : (
+          <>
+            {hasStoredCredentials && (
+              <div className="mb-6">
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={handleConnectWithStored}
+                  disabled={isLoading}
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  {isLoading ? 'Connecting...' : 'Connect with Stored Credentials'}
+                </Button>
+                
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or enter new credentials</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
             <Input
@@ -133,6 +203,8 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
           <p>Demo mode lets you explore with simulated data.</p>
           <p className="mt-2">Connect to see your real Emporia Vue energy data.</p>
         </div>
+          </>
+        )}
       </Card>
     </div>
   )
