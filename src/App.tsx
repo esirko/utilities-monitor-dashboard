@@ -12,7 +12,7 @@ import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { energySimulator } from '@/lib/energySimulator'
 import { api } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
-import { Lightning, ChartLine, SignOut, Database, Pause, Play } from '@phosphor-icons/react'
+import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
 
 type DataMode = 'demo' | 'real'
 
@@ -175,16 +175,6 @@ function App() {
           </div>
           
           <div className="flex items-center gap-2">
-            {isAuthenticated && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDataMode(dataMode === 'demo' ? 'real' : 'demo')}
-              >
-                <Database className="w-4 h-4 mr-2" />
-                {dataMode === 'demo' ? 'Demo Mode' : 'Live Data'}
-              </Button>
-            )}
             <Button 
               variant={isPaused ? "default" : "outline"}
               size="sm" 
