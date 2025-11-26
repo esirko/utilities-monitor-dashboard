@@ -45,7 +45,7 @@ function App() {
   }, [])
   
   const demoData = useEnergyData(timeRange, isPaused)
-  const { dataPoints: realDataPoints, error: realDataError } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
+  const { dataPoints: realDataPoints, error: realDataError, isLoading: isLoadingRealData } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   const [systemName, setSystemName] = useState<string>('Home')
@@ -249,8 +249,17 @@ function App() {
             </Tabs>
           </div>
           
-          <div className="bg-secondary/30 rounded-lg p-4">
-            <EnergyChart data={dataPoints} devices={devices} height={400} />
+          <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
+            {dataMode === 'real' && isLoadingRealData ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading historical data...</p>
+                </div>
+              </div>
+            ) : (
+              <EnergyChart data={dataPoints} devices={devices} height={400} />
+            )}
           </div>
         </Card>
         
