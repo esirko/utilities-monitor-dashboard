@@ -160,10 +160,6 @@ function App() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex justify-center mb-4">
-          <Clock />
-        </div>
-        
         <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
@@ -203,6 +199,10 @@ function App() {
             </Button>
           </div>
         </header>
+        
+        <div className="flex justify-center mb-4">
+          <Clock />
+        </div>
         
         {realDataError && dataMode === 'real' && (
           <Alert variant="destructive">
