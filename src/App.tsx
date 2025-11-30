@@ -181,7 +181,7 @@ function App() {
 
   const paneMeta: Record<PaneKey, { label: string; description: string }> = {
     electricity: {
-      label: 'Electricity via Emporia',
+      label: 'Electricity',
       description: 'Live Emporia Vue account dashboard'
     },
     gas: {
@@ -288,7 +288,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Electricity via Emporia
+                  Electricity
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
