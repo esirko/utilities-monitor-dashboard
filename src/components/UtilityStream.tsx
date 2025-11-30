@@ -61,6 +61,9 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const containerRef = useRef<HTMLDivElement | null>(null)
   const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
   const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
+  const imageRef = useRef<HTMLImageElement | null>(null)
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null)
+  const containerSizeRef = useRef<{ width: number; height: number }>({ width: 1, height: 1 })
 
   useEffect(() => {
     setStatus(mjpegUrl ? 'loading' : 'idle')
@@ -89,6 +92,16 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
   const MIN_SELECTION = 0.05
 
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget
+    imageRef.current = img
+    setFrameSize({
+      width: img.naturalWidth || img.width,
+      height: img.naturalHeight || img.height
+    })
+    setStatus('playing')
+  }
+
   function removeGlobalListeners() {
     if (moveListenerRef.current) {
       window.removeEventListener('pointermove', moveListenerRef.current)
@@ -106,6 +119,7 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       return
     }
     const rect = containerRef.current.getBoundingClientRect()
+    containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((clientX - rect.left) / rect.width)
     const y = clamp((clientY - rect.top) / rect.height)
     const start = dragStartRef.current
@@ -120,6 +134,7 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     if (!canSelect || !containerRef.current) return
     event.preventDefault()
     const rect = containerRef.current.getBoundingClientRect()
+    containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((event.clientX - rect.left) / rect.width)
     const y = clamp((event.clientY - rect.top) / rect.height)
     dragStartRef.current = { x, y }
@@ -179,20 +194,45 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     removeGlobalListeners()
   }
 
-  const showZoom = Boolean(selection && mjpegUrl && status === 'playing')
+  const showZoom = Boolean(selection && mjpegUrl && status === 'playing' && frameSize)
 
   let zoomStyles: React.CSSProperties | undefined
-  if (selection && selection.width > 0 && selection.height > 0) {
-    const widthPercent = 100 / Math.max(selection.width, 0.0001)
-    const heightPercent = 100 / Math.max(selection.height, 0.0001)
-    const leftPercent = (-selection.x * 100) / Math.max(selection.width, 0.0001)
-    const topPercent = (-selection.y * 100) / Math.max(selection.height, 0.0001)
+  let zoomContainerStyle: React.CSSProperties | undefined
+  if (showZoom && selection && frameSize) {
+    if (containerSizeRef.current.width === 1 && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      containerSizeRef.current = { width: rect.width, height: rect.height }
+    }
+    const { width: containerWidth, height: containerHeight } = containerSizeRef.current
+    const naturalWidth = frameSize.width
+    const naturalHeight = frameSize.height
+    const scale = Math.max(containerWidth / naturalWidth, containerHeight / naturalHeight)
+    const displayedWidth = naturalWidth * scale
+    const displayedHeight = naturalHeight * scale
+    const offsetX = (displayedWidth - containerWidth) / 2
+    const offsetY = (displayedHeight - containerHeight) / 2
+    const leftPx = selection.x * containerWidth
+    const topPx = selection.y * containerHeight
+    const widthPx = Math.max(selection.width * containerWidth, 1)
+    const heightPx = Math.max(selection.height * containerHeight, 1)
+    const translateX = -(leftPx + offsetX)
+    const translateY = -(topPx + offsetY)
+    const scaleX = containerWidth / widthPx
+    const scaleY = containerHeight / heightPx
+
     zoomStyles = {
       position: 'absolute',
-      width: `${widthPercent}%`,
-      height: `${heightPercent}%`,
-      left: `${leftPercent}%`,
-      top: `${topPercent}%`
+      width: `${displayedWidth}px`,
+      height: `${displayedHeight}px`,
+      left: `${translateX}px`,
+      top: `${translateY}px`,
+      transformOrigin: 'top left',
+      transform: `scale(${scaleX}, ${scaleY})`
+    }
+
+    zoomContainerStyle = {
+      width: `${containerWidth}px`,
+      height: `${containerHeight}px`
     }
   }
 
@@ -221,10 +261,11 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
               </div>
             )}
             <img
+              ref={imageRef}
               src={mjpegUrl}
               alt={`${title} live stream`}
               className={`h-full w-full object-cover ${status === 'error' ? 'hidden' : ''}`}
-              onLoad={() => setStatus('playing')}
+              onLoad={handleImageLoad}
               onError={() => setStatus('error')}
             />
             {selection && !isSelecting && (
@@ -263,11 +304,14 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       {showZoom && zoomStyles && (
         <div className="space-y-2">
           <div className="text-sm font-medium text-muted-foreground">Zoom preview</div>
-          <div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
+          <div
+            className="relative overflow-hidden rounded-md border border-border/60 bg-black"
+            style={zoomContainerStyle}
+          >
             <img
               src={mjpegUrl as string}
               alt={`${title} zoomed preview`}
-              className="absolute h-full w-full object-cover"
+              className="absolute"
               style={zoomStyles}
             />
           </div>
