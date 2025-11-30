@@ -510,7 +510,7 @@ function App() {
   }
 
   const utilitiesTitle = 'Utilities monitor'
-  const orientationLabel = visiblePanes.length === 2 ? 'Layout' : 'Split'
+  const canAdjustOrientation = visiblePanes.length >= 2
   const utilitiesToggleValues = visiblePanes
 
   return (
@@ -533,39 +533,41 @@ function App() {
             </span>
           </h1>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Utilities</span>
-              <ToggleGroup
-                type="multiple"
-                value={utilitiesToggleValues}
-                onValueChange={handlePaneSelectionChange}
-                variant="outline"
-                size="sm"
-              >
-                {paneKeys.map((pane) => (
-                  <ToggleGroupItem key={pane} value={pane} className="capitalize">
-                    {paneMeta[pane].label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
-            {visiblePanes.length >= 2 && (
-              <div className="flex items-center gap-2">
-                <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {orientationLabel}
-                </span>
-                <ToggleGroup
-                  type="single"
-                  value={splitOrientation}
-                  onValueChange={(value) => value && setSplitOrientation(value as SplitOrientation)}
-                  variant="outline"
-                  size="sm"
+            <ToggleGroup
+              type="multiple"
+              value={utilitiesToggleValues}
+              onValueChange={handlePaneSelectionChange}
+              variant="outline"
+              size="sm"
+            >
+              {paneKeys.map((pane) => (
+                <ToggleGroupItem
+                  key={pane}
+                  value={pane}
+                  className="capitalize whitespace-nowrap px-3"
                 >
-                  <ToggleGroupItem value="horizontal">Horizontal</ToggleGroupItem>
-                  <ToggleGroupItem value="vertical">Vertical</ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            )}
+                  {paneMeta[pane].label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <ToggleGroup
+              type="single"
+              value={splitOrientation}
+              onValueChange={(value) => {
+                if (!value || !canAdjustOrientation) return
+                setSplitOrientation(value as SplitOrientation)
+              }}
+              variant="outline"
+              size="sm"
+              className={!canAdjustOrientation ? 'opacity-60' : ''}
+            >
+              <ToggleGroupItem value="horizontal" disabled={!canAdjustOrientation} className="px-3">
+                Horizontal
+              </ToggleGroupItem>
+              <ToggleGroupItem value="vertical" disabled={!canAdjustOrientation} className="px-3">
+                Vertical
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </Card>
         <div className="rounded-xl border bg-card/40 shadow-sm">
