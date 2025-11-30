@@ -42,15 +42,21 @@ API Endpoints:
     GET    /api/energy/history      - Get historical energy data
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, abort
 from flask_cors import CORS
 from pyemvue import PyEmVue
 from pyemvue.enums import Scale, Unit
 import jwt
 import datetime
 import os
+import time
 from functools import wraps
 import json
+
+try:
+    import cv2  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover
+    cv2 = None
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
@@ -61,6 +67,62 @@ ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
 SYSTEM_NAME = os.environ.get('SYSTEM_NAME', 'Home')
 DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
 VERBOSE_LOGGING = os.environ.get('VERBOSE_LOGGING', 'false').lower() == 'true'  # Enable verbose device usage logging
+GAS_RTSP_URL = os.environ.get('GAS_RTSP_URL', '')
+WATER_RTSP_URL = os.environ.get('WATER_RTSP_URL', '')
+
+
+def restream_available() -> bool:
+    return cv2 is not None
+
+
+def build_stream_info(name: str, url: str | None):
+    if not url:
+        return {
+            'rtsp': None,
+            'mjpeg': None,
+            'restreamAvailable': False
+        }
+    info = {
+        'rtsp': url,
+        'restreamAvailable': restream_available()
+    }
+    if info['restreamAvailable']:
+        info['mjpeg'] = f"/api/streams/{name}/mjpeg"
+    else:
+        info['mjpeg'] = None
+    return info
+
+
+def stream_rtsp_as_mjpeg(rtsp_url: str):
+    if not rtsp_url:
+        abort(404, description='Stream not configured')
+    if not restream_available():
+        abort(503, description='Restreaming unavailable: install opencv-python-headless')
+
+    cap = cv2.VideoCapture(rtsp_url)
+    if not cap.isOpened():
+        abort(502, description='Unable to open RTSP stream')
+
+    def generate():
+        last_frame_time = time.time()
+        try:
+            while True:
+                success, frame = cap.read()
+                if not success:
+                    if time.time() - last_frame_time > 5:
+                        break
+                    time.sleep(0.1)
+                    continue
+                last_frame_time = time.time()
+                success, buffer = cv2.imencode('.jpg', frame)
+                if not success:
+                    continue
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        finally:
+            cap.release()
+
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -704,8 +766,29 @@ def get_config():
     """Get configuration variables (electricity rate, system name, etc.)"""
     return jsonify({
         'electricityRate': ELECTRICITY_RATE,
-        'systemName': SYSTEM_NAME
+        'systemName': SYSTEM_NAME,
+        'gasStreamUrl': GAS_RTSP_URL,
+        'waterStreamUrl': WATER_RTSP_URL,
+        'gasStream': build_stream_info('gas', GAS_RTSP_URL),
+        'waterStream': build_stream_info('water', WATER_RTSP_URL)
     })
+
+@app.route('/api/streams', methods=['GET'])
+def get_stream_urls():
+    """Public endpoint exposing utility stream URLs"""
+    return jsonify({
+        'gas': build_stream_info('gas', GAS_RTSP_URL),
+        'water': build_stream_info('water', WATER_RTSP_URL)
+    })
+
+
+@app.route('/api/streams/<stream_name>/mjpeg', methods=['GET'])
+def mjpeg_stream(stream_name: str):
+    """MJPEG proxy for configured RTSP streams"""
+    if stream_name not in {'gas', 'water'}:
+        abort(404, description='Unknown stream')
+    url = GAS_RTSP_URL if stream_name == 'gas' else WATER_RTSP_URL
+    return stream_rtsp_as_mjpeg(url)
 
 @app.route('/', methods=['GET'])
 def root():

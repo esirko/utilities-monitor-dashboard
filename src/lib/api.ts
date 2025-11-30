@@ -3,6 +3,12 @@ import { toast } from 'sonner'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173'
 
+export interface StreamInfo {
+  rtsp?: string | null
+  mjpeg?: string | null
+  restreamAvailable?: boolean
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -19,6 +25,31 @@ let reAuthAttemptCount = 0
 let lastReAuthAttempt = 0
 const MAX_REAUTH_ATTEMPTS = 3
 const REAUTH_BACKOFF_MS = 5000
+
+function toAbsoluteUrl(path?: string | null): string | undefined {
+  if (!path) return undefined
+  if (/^https?:/i.test(path)) {
+    return path
+  }
+  const base = API_URL.replace(/\/$/, '')
+  const normalised = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalised}`
+}
+
+function normaliseStreamInfo(raw: any): StreamInfo | undefined {
+  if (!raw) return undefined
+  const rtsp = raw.rtsp ?? raw.rtspUrl ?? raw.url ?? null
+  const mjpeg = toAbsoluteUrl(raw.mjpeg ?? raw.restream ?? raw.mjpegUrl ?? null)
+  const restreamAvailable = raw.restreamAvailable ?? Boolean(raw.mjpeg ?? raw.restream)
+  if (!rtsp && !mjpeg) {
+    return undefined
+  }
+  return {
+    rtsp,
+    mjpeg,
+    restreamAvailable
+  }
+}
 
 async function attemptReAuthentication(): Promise<boolean> {
   const now = Date.now()
@@ -175,11 +206,22 @@ export const api = {
     return data.dataPoints || []
   },
 
-  async getConfig(): Promise<{ electricityRate: number; systemName: string }> {
+  async getConfig(): Promise<{
+    electricityRate: number
+    systemName: string
+    gasStreamUrl?: string
+    waterStreamUrl?: string
+    gasStream?: StreamInfo
+    waterStream?: StreamInfo
+  }> {
     const data = await fetchWithAuth('/api/config')
     return {
       electricityRate: data.electricityRate || 0.314555,
-      systemName: data.systemName || 'Home'
+      systemName: data.systemName || 'Home',
+      gasStreamUrl: data.gasStreamUrl,
+      waterStreamUrl: data.waterStreamUrl,
+      gasStream: normaliseStreamInfo(data.gasStream),
+      waterStream: normaliseStreamInfo(data.waterStream)
     }
   },
 
@@ -225,6 +267,23 @@ export const api = {
         throw error
       }
       throw new ApiError('Failed to connect to server. Make sure the backend is running.')
+    }
+  },
+
+  async getStreamUrls(): Promise<{ gas?: StreamInfo; water?: StreamInfo }> {
+    try {
+      const response = await fetch(`${API_URL}/api/streams`)
+      if (!response.ok) {
+        return { gas: undefined, water: undefined }
+      }
+      const data = await response.json()
+      return {
+        gas: normaliseStreamInfo(data.gas),
+        water: normaliseStreamInfo(data.water)
+      }
+    } catch (error) {
+      console.error('Failed to load stream URLs from backend:', error)
+      return { gas: undefined, water: undefined }
     }
   },
 }
