@@ -14,7 +14,7 @@ import { UtilityStream } from '@/components/UtilityStream'
 import { useEnergyData } from '@/hooks/use-energy-data'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { energySimulator } from '@/lib/energySimulator'
-import { api } from '@/lib/api'
+import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
 import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
 
@@ -36,8 +36,8 @@ function App() {
     water: true
   })
   const [splitOrientation, setSplitOrientation] = useState<SplitOrientation>('horizontal')
-  const [gasStreamUrl, setGasStreamUrl] = useState<string | null>(null)
-  const [waterStreamUrl, setWaterStreamUrl] = useState<string | null>(null)
+  const [gasStream, setGasStream] = useState<StreamInfo>({})
+  const [waterStream, setWaterStream] = useState<StreamInfo>({})
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -100,10 +100,16 @@ function App() {
           setElectricityRate(config.electricityRate)
           setSystemName(config.systemName)
           if (config.gasStreamUrl !== undefined) {
-            setGasStreamUrl(config.gasStreamUrl || null)
+            setGasStream(prev => ({ ...prev, rtsp: config.gasStreamUrl || null }))
           }
           if (config.waterStreamUrl !== undefined) {
-            setWaterStreamUrl(config.waterStreamUrl || null)
+            setWaterStream(prev => ({ ...prev, rtsp: config.waterStreamUrl || null }))
+          }
+          if (config.gasStream) {
+            setGasStream(config.gasStream)
+          }
+          if (config.waterStream) {
+            setWaterStream(config.waterStream)
           }
         } catch (err) {
           console.error('Failed to fetch config from backend:', err)
@@ -118,8 +124,8 @@ function App() {
     const loadStreams = async () => {
       const streams = await api.getStreamUrls()
       if (!cancelled) {
-        setGasStreamUrl(streams.gas ?? null)
-        setWaterStreamUrl(streams.water ?? null)
+        setGasStream(streams.gas || {})
+        setWaterStream(streams.water || {})
       }
     }
     loadStreams()
@@ -231,7 +237,7 @@ function App() {
     title: string,
     description: string,
     cards: Array<{ title: string; body: string }>,
-    streamUrl?: string | null
+    stream?: StreamInfo
   ) => (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
@@ -241,9 +247,11 @@ function App() {
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <div className="space-y-6">
           <UtilityStream
-            url={streamUrl}
+            rtspUrl={stream?.rtsp ?? null}
+            mjpegUrl={stream?.mjpeg ?? null}
+            restreamAvailable={stream?.restreamAvailable}
             title={`${title} stream`}
-            note="Configure the backend to restream RTSP feeds to HLS/WebRTC for best browser compatibility."
+            note={stream?.restreamAvailable ? undefined : 'Configure the backend restreamer to expose RTSP as MJPEG/WebRTC for browser playback.'}
           />
           <div className="grid gap-4 md:grid-cols-2">
             {cards.map(card => (
@@ -279,7 +287,7 @@ function App() {
         body: 'Capture integration tasks, API needs, or notifications you want to add once the feature ships.'
       }
     ],
-    gasStreamUrl
+    gasStream
   )
 
   const waterPane = renderPlaceholderPane(
@@ -303,7 +311,7 @@ function App() {
         body: 'Assign follow-ups, jot meeting notes, or track approvals from partner teams in one place.'
       }
     ],
-    waterStreamUrl
+    waterStream
   )
 
   const electricityPane = (!isAuthenticated && !isDemoMode) ? (
