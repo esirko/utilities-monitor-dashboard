@@ -509,7 +509,7 @@ function App() {
     )
   }
 
-  const utilitiesTitle = `Utilities monitor${!isDemoMode && systemName ? ` - ${systemName}` : ''}`
+  const utilitiesTitle = 'Utilities monitor'
   const orientationLabel = visiblePanes.length === 2 ? 'Layout' : 'Split'
   const utilitiesToggleValues = visiblePanes
 
@@ -520,6 +520,12 @@ function App() {
           <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
             <span className="inline-flex items-center gap-2 text-left sm:gap-3">
               <span>{utilitiesTitle}</span>
+              {systemName && !isDemoMode && (
+                <>
+                  <span className="text-muted-foreground">-</span>
+                  <span>{systemName}</span>
+                </>
+              )}
               <span className="text-muted-foreground">-</span>
               <span className="inline-flex">
                 <Clock />
