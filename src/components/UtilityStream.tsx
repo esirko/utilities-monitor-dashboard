@@ -48,7 +48,6 @@ function getStreamDetails(rtspUrl?: string | null, fallbackUrl?: string | null) 
   }
 }
 
-// react-player's type definitions don't align perfectly with our TS config. Cast to any for flexibility.
 const Player = ReactPlayer as unknown as React.FC<any>
 
 export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, note }: UtilityStreamProps) {
@@ -56,14 +55,16 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>(mjpegUrl ? 'loading' : 'idle')
   const [selection, setSelection] = useState<SelectionRect | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
+
   const dragStartRef = useRef<{ x: number; y: number } | null>(null)
   const isSelectingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
   const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
   const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null)
-  const containerSizeRef = useRef<{ width: number; height: number }>({ width: 1, height: 1 })
 
   useEffect(() => {
     setStatus(mjpegUrl ? 'loading' : 'idle')
@@ -79,28 +80,18 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
 
   useEffect(() => () => removeGlobalListeners(), [])
 
-  if (!details.isValid) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>{details.message}</AlertDescription>
-      </Alert>
-    )
-  }
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+    }
+  }, [])
 
   const canSelect = Boolean(mjpegUrl) && status !== 'error'
-
   const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
   const MIN_SELECTION = 0.05
-
-  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = event.currentTarget
-    imageRef.current = img
-    setFrameSize({
-      width: img.naturalWidth || img.width,
-      height: img.naturalHeight || img.height
-    })
-    setStatus('playing')
-  }
 
   function removeGlobalListeners() {
     if (moveListenerRef.current) {
@@ -119,7 +110,6 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       return
     }
     const rect = containerRef.current.getBoundingClientRect()
-    containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((clientX - rect.left) / rect.width)
     const y = clamp((clientY - rect.top) / rect.height)
     const start = dragStartRef.current
@@ -134,7 +124,6 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     if (!canSelect || !containerRef.current) return
     event.preventDefault()
     const rect = containerRef.current.getBoundingClientRect()
-    containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((event.clientX - rect.left) / rect.width)
     const y = clamp((event.clientY - rect.top) / rect.height)
     dragStartRef.current = { x, y }
@@ -146,7 +135,7 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       updateSelectionFromClient(nativeEvent.clientX, nativeEvent.clientY)
     }
 
-    const handleUp = (nativeEvent: PointerEvent) => {
+    const handleUp = (_nativeEvent: PointerEvent) => {
       finalizeSelection()
       removeGlobalListeners()
     }
@@ -194,47 +183,97 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     removeGlobalListeners()
   }
 
-  const showZoom = Boolean(selection && mjpegUrl && status === 'playing' && frameSize)
+  const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget
+    imageRef.current = img
+    setFrameSize({
+      width: img.naturalWidth || img.width,
+      height: img.naturalHeight || img.height
+    })
+    setStatus('playing')
+  }
 
-  let zoomStyles: React.CSSProperties | undefined
-  let zoomContainerStyle: React.CSSProperties | undefined
-  if (showZoom && selection && frameSize) {
-    if (containerSizeRef.current.width === 1 && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect()
-      containerSizeRef.current = { width: rect.width, height: rect.height }
+  const drawZoomPreview = () => {
+    if (!selection || !imageRef.current || !previewCanvasRef.current || status !== 'playing') {
+      return
     }
-    const { width: containerWidth, height: containerHeight } = containerSizeRef.current
-    const naturalWidth = frameSize.width
-    const naturalHeight = frameSize.height
+    const img = imageRef.current
+    const canvas = previewCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const naturalWidth = img.naturalWidth || frameSize?.width
+    const naturalHeight = img.naturalHeight || frameSize?.height
+    if (!naturalWidth || !naturalHeight) return
+
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const containerWidth = rect.width
+    const containerHeight = rect.height
+    if (!containerWidth || !containerHeight) return
+
+    if (canvas.width !== containerWidth || canvas.height !== containerHeight) {
+      canvas.width = containerWidth
+      canvas.height = containerHeight
+    }
+
     const scale = Math.max(containerWidth / naturalWidth, containerHeight / naturalHeight)
     const displayedWidth = naturalWidth * scale
     const displayedHeight = naturalHeight * scale
     const offsetX = (displayedWidth - containerWidth) / 2
     const offsetY = (displayedHeight - containerHeight) / 2
+
     const leftPx = selection.x * containerWidth
     const topPx = selection.y * containerHeight
-    const widthPx = Math.max(selection.width * containerWidth, 1)
-    const heightPx = Math.max(selection.height * containerHeight, 1)
-    const translateX = -(leftPx + offsetX)
-    const translateY = -(topPx + offsetY)
-    const scaleX = containerWidth / widthPx
-    const scaleY = containerHeight / heightPx
+    const widthPx = selection.width * containerWidth
+    const heightPx = selection.height * containerHeight
 
-    zoomStyles = {
-      position: 'absolute',
-      width: `${displayedWidth}px`,
-      height: `${displayedHeight}px`,
-      left: `${translateX}px`,
-      top: `${translateY}px`,
-      transformOrigin: 'top left',
-      transform: `scale(${scaleX}, ${scaleY})`
-    }
+    const sx = (leftPx + offsetX) / scale
+    const sy = (topPx + offsetY) / scale
+    const sw = widthPx / scale
+    const sh = heightPx / scale
+    if (sw <= 1 || sh <= 1) return
 
-    zoomContainerStyle = {
-      width: `${containerWidth}px`,
-      height: `${containerHeight}px`
-    }
+    const clampedSX = Math.min(Math.max(sx, 0), naturalWidth - sw)
+    const clampedSY = Math.min(Math.max(sy, 0), naturalHeight - sh)
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, clampedSX, clampedSY, sw, sh, 0, 0, canvas.width, canvas.height)
   }
+
+  useEffect(() => {
+    if (!selection || status !== 'playing' || !mjpegUrl) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+      return
+    }
+
+    const tick = () => {
+      drawZoomPreview()
+      animationFrameRef.current = requestAnimationFrame(tick)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+    }
+  }, [selection, status, mjpegUrl, frameSize])
+
+  if (!details.isValid) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{details.message}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  const showZoom = Boolean(selection && mjpegUrl && status === 'playing')
 
   return (
     <div className="space-y-3">
@@ -301,19 +340,11 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
           </div>
         )}
       </div>
-      {showZoom && zoomStyles && (
+      {showZoom && (
         <div className="space-y-2">
           <div className="text-sm font-medium text-muted-foreground">Zoom preview</div>
-          <div
-            className="relative overflow-hidden rounded-md border border-border/60 bg-black"
-            style={zoomContainerStyle}
-          >
-            <img
-              src={mjpegUrl as string}
-              alt={`${title} zoomed preview`}
-              className="absolute"
-              style={zoomStyles}
-            />
+          <div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
+            <canvas ref={previewCanvasRef} className="h-full w-full" />
           </div>
           <button
             type="button"
