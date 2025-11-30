@@ -518,8 +518,9 @@ function App() {
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
         <Card className="flex items-center justify-between gap-3 p-3 shadow-sm sm:p-4">
           <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-            <span className="inline-flex items-center gap-3 text-left">
+            <span className="inline-flex items-center gap-2 text-left sm:gap-3">
               <span>{utilitiesTitle}</span>
+              <span className="text-muted-foreground">-</span>
               <span className="inline-flex">
                 <Clock />
               </span>
