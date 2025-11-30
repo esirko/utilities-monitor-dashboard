@@ -287,8 +287,25 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     const clampedSX = Math.min(Math.max(sx, 0), naturalWidth - sw)
     const clampedSY = Math.min(Math.max(sy, 0), naturalHeight - sh)
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(img, clampedSX, clampedSY, sw, sh, 0, 0, canvas.width, canvas.height)
+    const selectionAspect = sw / sh
+    const canvasAspect = canvas.width / canvas.height
+    let destWidth: number
+    let destHeight: number
+    if (selectionAspect >= canvasAspect) {
+      destWidth = canvas.width
+      destHeight = destWidth / selectionAspect
+    } else {
+      destHeight = canvas.height
+      destWidth = destHeight * selectionAspect
+    }
+    const destX = (canvas.width - destWidth) / 2
+    const destY = (canvas.height - destHeight) / 2
+
+    ctx.save()
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, clampedSX, clampedSY, sw, sh, destX, destY, destWidth, destHeight)
+    ctx.restore()
   }
 
   useEffect(() => {
