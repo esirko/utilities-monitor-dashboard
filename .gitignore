@@ -24,6 +24,8 @@ dist-ssr
 *.sln
 *.sw?
 
+.creds.json
+venv/
 .env
 **/agent-eval-report*
 packages
@@ -32,3 +34,4 @@ pids
 .devcontainer/
 
 .spark-workbench-id
+

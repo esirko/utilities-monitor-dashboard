@@ -1,8 +1,10 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { EnergyChart } from '@/components/EnergyChart'
 import { DeviceList } from '@/components/DeviceList'
 import { TotalUsage } from '@/components/TotalUsage'
@@ -17,6 +19,9 @@ import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/reac
 
 type DataMode = 'demo' | 'real'
 
+type PaneKey = 'electricity' | 'gas' | 'water'
+type SplitOrientation = 'horizontal' | 'vertical'
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isDemoMode, setIsDemoMode] = useState(false)
@@ -24,6 +29,12 @@ function App() {
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const [isPaused, setIsPaused] = useState(false)
   const timeRange = TIME_RANGES[selectedRange]
+  const [paneVisibility, setPaneVisibility] = useState<Record<PaneKey, boolean>>({
+    electricity: true,
+    gas: true,
+    water: true
+  })
+  const [splitOrientation, setSplitOrientation] = useState<SplitOrientation>('horizontal')
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -162,140 +173,411 @@ function App() {
     setIsPaused(false)
   }
   
-  if (!isAuthenticated && !isDemoMode) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} onDemoMode={handleDemoMode} />
+  const paneMeta: Record<PaneKey, { label: string; description: string }> = {
+    electricity: {
+      label: 'Electricity',
+      description: 'Live Emporia Vue account dashboard'
+    },
+    gas: {
+      label: 'Gas',
+      description: 'Upcoming controls and analytics for gas utilities'
+    },
+    water: {
+      label: 'Water',
+      description: 'Placeholder workspace for water usage insights'
+    }
   }
-  
-  return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
-              <Lightning weight="fill" className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                Energy Monitor {!isDemoMode && systemName && `- ${systemName}`}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button 
-              variant={isPaused ? "default" : "outline"}
-              size="sm" 
-              onClick={() => setIsPaused(!isPaused)}
-            >
-              {isPaused ? (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Resume
-                </>
-              ) : (
-                <>
-                  <Pause className="w-4 h-4 mr-2" />
-                  Pause
-                </>
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <SignOut className="w-4 h-4 mr-2" />
-              {isDemoMode ? 'Exit Demo' : 'Logout'}
-            </Button>
-          </div>
-        </header>
-        
-        <div className="flex justify-center mb-4">
-          <Clock />
+  const paneKeys = Object.keys(paneMeta) as PaneKey[]
+
+  const handlePaneSelectionChange = (values: string[]) => {
+    const typedValues = values.filter((value): value is PaneKey => paneKeys.includes(value as PaneKey))
+    if (typedValues.length === 0) {
+      return
+    }
+    setPaneVisibility(prev => {
+      const next = { ...prev }
+      paneKeys.forEach(key => {
+        next[key] = typedValues.includes(key)
+      })
+      return next
+    })
+  }
+
+  const renderPlaceholderPane = (
+    title: string,
+    description: string,
+    cards: Array<{ title: string; body: string }>
+  ) => (
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <div className="border-b px-4 py-3 sm:px-6">
+        <h2 className="text-lg font-semibold leading-tight">{title}</h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          {cards.map(card => (
+            <Card key={card.title} className="border-dashed bg-card/40 p-4">
+              <h3 className="text-sm font-semibold">{card.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{card.body}</p>
+            </Card>
+          ))}
         </div>
-        
-        {realDataError && dataMode === 'real' && (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {realDataError} - Switched to demo mode.
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <TotalUsage 
-            currentWatts={currentTotal} 
-            previousWatts={previousTotal}
-          />
-          <Card className="p-6 border-2 border-primary/30">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Hourly Cost</div>
-            <div className="text-3xl font-bold text-foreground tabular-nums">
-              ${hourlyCost.toFixed(4)}
-            </div>
-          </Card>
-          <Card className="p-6 border-2 border-primary/30">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Extrapolation</div>
-            <div className="text-3xl font-bold text-foreground tabular-nums">
-              ${monthlyCost.toFixed(2)}
-            </div>
-          </Card>
-        </div>
-        
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <ChartLine weight="bold" className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-semibold">Power Usage</h2>
-            </div>
-            
-            <Tabs value={selectedRange} onValueChange={(v) => setSelectedRange(v as keyof typeof TIME_RANGES)}>
-              <TabsList className="grid grid-cols-4 w-full sm:w-auto">
-                {Object.entries(TIME_RANGES).map(([key, range]) => (
-                  <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
-                    {range.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
-            <EnergyChart data={dataPoints} devices={devices} height={400} />
-            {dataMode === 'real' && isLoadingRealData && dataPoints.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
-                <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading historical data...</p>
-                </div>
-              </div>
-            )}
-            {dataMode === 'real' && isLoadingRealData && dataPoints.length > 0 && (
-              <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
-                <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                <p className="text-xs text-muted-foreground">Loading...</p>
-              </div>
-            )}
-          </div>
-        </Card>
-        
-        <Card className="p-6 font-mono">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Lightning weight="bold" className="w-5 h-5 text-accent" />
-            Active Devices
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({devices.filter(d => d.status === 'active').length} active)
-            </span>
-          </h2>
-          <DeviceList devices={devices} />
-        </Card>
-        
-        <footer className="text-center text-xs text-muted-foreground py-4">
-          <p>
-            {isPaused ? 'Data updates paused' : `Live energy monitoring • Updates every ${timeRange.updateInterval / 1000}s`}
-          </p>
-        </footer>
       </div>
     </div>
-  );
+  )
+
+  const gasPane = renderPlaceholderPane(
+    'Gas',
+    'Capture upcoming gas utility tooling, safety automations, and monitoring plans.',
+    [
+      {
+        title: 'Trigger ideas',
+        body: 'Sketch automation triggers such as peak-hour usage, device state changes, or manual overrides.'
+      },
+      {
+        title: 'Action sequences',
+        body: 'Plan the steps each routine should perform. This placeholder will host drag-and-drop workflow editors.'
+      },
+      {
+        title: 'Metrics to monitor',
+        body: 'List the readings that confirm or abort a routine, including voltage, temperature, or occupancy.'
+      },
+      {
+        title: 'Next steps',
+        body: 'Capture integration tasks, API needs, or notifications you want to add once the feature ships.'
+      }
+    ]
+  )
+
+  const waterPane = renderPlaceholderPane(
+    'Water',
+    'Draft dashboards, alerts, and conservation ideas for water usage.',
+    [
+      {
+        title: 'Observation log',
+        body: 'Note trends, anomalies, or spikes that deserve deeper investigation when analytics tools arrive.'
+      },
+      {
+        title: 'Hypothesis queue',
+        body: 'Record questions the team wants to validate—like device drift, seasonal patterns, or forecast accuracy.'
+      },
+      {
+        title: 'Data wishlist',
+        body: 'Document external feeds or sensors that would enhance reporting once they are connected.'
+      },
+      {
+        title: 'Collaboration notes',
+        body: 'Assign follow-ups, jot meeting notes, or track approvals from partner teams in one place.'
+      }
+    ]
+  )
+
+  const electricityPane = (!isAuthenticated && !isDemoMode) ? (
+    <div className="flex h-full items-center justify-center overflow-hidden bg-background px-4 py-6">
+      <div className="w-full max-w-md">
+        <LoginForm onLoginSuccess={handleLoginSuccess} onDemoMode={handleDemoMode} />
+      </div>
+    </div>
+  ) : (
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6 px-4 py-6 md:px-6">
+          <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
+                <Lightning weight="fill" className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+                  Electricity
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant={isPaused ? "default" : "outline"}
+                size="sm" 
+                onClick={() => setIsPaused(!isPaused)}
+              >
+                {isPaused ? (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Resume
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <SignOut className="w-4 h-4 mr-2" />
+                {isDemoMode ? 'Exit Demo' : 'Logout'}
+              </Button>
+            </div>
+          </header>
+          
+          {realDataError && dataMode === 'real' && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {realDataError} - Switched to demo mode.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <TotalUsage 
+              currentWatts={currentTotal} 
+              previousWatts={previousTotal}
+            />
+            <Card className="p-6 border-2 border-primary/30">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Hourly Cost</div>
+              <div className="text-3xl font-bold text-foreground tabular-nums">
+                ${hourlyCost.toFixed(4)}
+              </div>
+            </Card>
+            <Card className="p-6 border-2 border-primary/30">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Extrapolation</div>
+              <div className="text-3xl font-bold text-foreground tabular-nums">
+                ${monthlyCost.toFixed(2)}
+              </div>
+            </Card>
+          </div>
+          
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <ChartLine weight="bold" className="w-5 h-5 text-primary" />
+                <h2 className="text-xl font-semibold">Power Usage</h2>
+              </div>
+              
+              <Tabs value={selectedRange} onValueChange={(v) => setSelectedRange(v as keyof typeof TIME_RANGES)}>
+                <TabsList className="grid grid-cols-4 w-full sm:w-auto">
+                  {Object.entries(TIME_RANGES).map(([key, range]) => (
+                    <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
+                      {range.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
+              <EnergyChart data={dataPoints} devices={devices} height={400} />
+              {dataMode === 'real' && isLoadingRealData && dataPoints.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading historical data...</p>
+                  </div>
+                </div>
+              )}
+              {dataMode === 'real' && isLoadingRealData && dataPoints.length > 0 && (
+                <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
+                  <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                  <p className="text-xs text-muted-foreground">Loading...</p>
+                </div>
+              )}
+            </div>
+          </Card>
+          
+          <Card className="p-6 font-mono">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Lightning weight="bold" className="w-5 h-5 text-accent" />
+              Active Devices
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({devices.filter(d => d.status === 'active').length} active)
+              </span>
+            </h2>
+            <DeviceList devices={devices} />
+          </Card>
+          
+          <footer className="text-center text-xs text-muted-foreground py-4">
+            <p>
+              {isPaused ? 'Data updates paused' : `Live energy monitoring • Updates every ${timeRange.updateInterval / 1000}s`}
+            </p>
+          </footer>
+        </div>
+      </div>
+    </div>
+  )
+
+  const paneContentMap: Record<PaneKey, ReactNode> = {
+    electricity: electricityPane,
+    gas: gasPane,
+    water: waterPane
+  }
+  const visiblePanes = paneKeys.filter((key): key is PaneKey => paneVisibility[key])
+  const orderedPanes: PaneKey[] = visiblePanes.includes('electricity')
+    ? (['electricity', ...visiblePanes.filter(key => key !== 'electricity')] as PaneKey[])
+    : visiblePanes
+
+  const renderLayout = () => {
+    if (orderedPanes.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Enable at least one pane to get started.
+        </div>
+      )
+    }
+
+    const panel = (key: PaneKey) => (
+      <div className="h-full" key={key}>
+        {paneContentMap[key]}
+      </div>
+    )
+
+    if (orderedPanes.length === 1) {
+      return <div className="h-full">{panel(orderedPanes[0])}</div>
+    }
+
+    if (orderedPanes.length === 2) {
+      const [first, second] = orderedPanes
+      if (splitOrientation === 'horizontal') {
+        return (
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(first)}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(second)}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        )
+      }
+      return (
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+            {panel(first)}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+            {panel(second)}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )
+    }
+
+    const [first, second, third] = orderedPanes
+
+    if (splitOrientation === 'horizontal') {
+      return (
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
+            {panel(first)}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
+            <ResizablePanelGroup direction="vertical" className="h-full">
+              <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+                {panel(second)}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+                {panel(third)}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )
+    }
+
+    return (
+      <ResizablePanelGroup direction="vertical" className="h-full">
+        <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
+          {panel(first)}
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(second)}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(third)}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    )
+  }
+
+  const utilitiesTitle = 'Utilities monitor'
+  const canAdjustOrientation = visiblePanes.length >= 2
+  const utilitiesToggleValues = visiblePanes
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
+        <Card className="flex items-center justify-between gap-3 p-3 shadow-sm sm:p-4">
+          <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+            <span className="inline-flex items-center gap-2 text-left sm:gap-3">
+              <span>{utilitiesTitle}</span>
+              {systemName && !isDemoMode && (
+                <>
+                  <span className="text-muted-foreground">-</span>
+                  <span>{systemName}</span>
+                </>
+              )}
+              <span className="text-muted-foreground">-</span>
+              <span className="inline-flex">
+                <Clock />
+              </span>
+            </span>
+          </h1>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <ToggleGroup
+              type="multiple"
+              value={utilitiesToggleValues}
+              onValueChange={handlePaneSelectionChange}
+              variant="outline"
+              size="sm"
+            >
+              {paneKeys.map((pane) => (
+                <ToggleGroupItem
+                  key={pane}
+                  value={pane}
+                  className="capitalize whitespace-nowrap px-3"
+                >
+                  {paneMeta[pane].label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <ToggleGroup
+              type="single"
+              value={splitOrientation}
+              onValueChange={(value) => {
+                if (!value || !canAdjustOrientation) return
+                setSplitOrientation(value as SplitOrientation)
+              }}
+              variant="outline"
+              size="sm"
+              className={!canAdjustOrientation ? 'opacity-60' : ''}
+            >
+              <ToggleGroupItem value="horizontal" disabled={!canAdjustOrientation} className="px-3">
+                Horizontal
+              </ToggleGroupItem>
+              <ToggleGroupItem value="vertical" disabled={!canAdjustOrientation} className="px-3">
+                Vertical
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </Card>
+        <div className="rounded-xl border bg-card/40 shadow-sm">
+          <div className="h-[72vh] min-h-[520px] overflow-hidden">
+            {renderLayout()}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default App
