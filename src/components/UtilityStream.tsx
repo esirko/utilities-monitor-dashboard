@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ReactPlayer from 'react-player'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -8,6 +8,13 @@ interface UtilityStreamProps {
   restreamAvailable?: boolean
   title: string
   note?: string
+}
+
+interface SelectionRect {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 function isValidUrl(value?: string | null) {
@@ -47,10 +54,21 @@ const Player = ReactPlayer as unknown as React.FC<any>
 export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, note }: UtilityStreamProps) {
   const details = useMemo(() => getStreamDetails(rtspUrl, mjpegUrl), [rtspUrl, mjpegUrl])
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>(mjpegUrl ? 'loading' : 'idle')
+  const [selection, setSelection] = useState<SelectionRect | null>(null)
+  const [isSelecting, setIsSelecting] = useState(false)
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setStatus(mjpegUrl ? 'loading' : 'idle')
+    setSelection(null)
   }, [mjpegUrl])
+
+  useEffect(() => {
+    if (status === 'error') {
+      setSelection(null)
+    }
+  }, [status])
 
   if (!details.isValid) {
     return (
@@ -60,9 +78,95 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     )
   }
 
+  const canSelect = Boolean(mjpegUrl) && status !== 'error'
+
+  const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
+  const MIN_SELECTION = 0.05
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canSelect || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = clamp((event.clientX - rect.left) / rect.width)
+    const y = clamp((event.clientY - rect.top) / rect.height)
+    dragStartRef.current = { x, y }
+    setSelection({ x, y, width: 0, height: 0 })
+    setIsSelecting(true)
+    try {
+      containerRef.current.setPointerCapture(event.pointerId)
+    } catch {
+      // ignore
+    }
+  }
+
+  const updateSelection = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelecting || !dragStartRef.current || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = clamp((event.clientX - rect.left) / rect.width)
+    const y = clamp((event.clientY - rect.top) / rect.height)
+    const start = dragStartRef.current
+    const left = Math.min(start.x, x)
+    const top = Math.min(start.y, y)
+    const width = Math.abs(x - start.x)
+    const height = Math.abs(y - start.y)
+    setSelection({ x: left, y: top, width, height })
+  }
+
+  const finalizeSelection = (event?: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelecting) return
+    if (event && containerRef.current) {
+      try {
+        containerRef.current.releasePointerCapture(event.pointerId)
+      } catch {
+        // ignore
+      }
+    }
+    setIsSelecting(false)
+    dragStartRef.current = null
+    setSelection(prev => {
+      if (!prev) return null
+      if (prev.width < MIN_SELECTION || prev.height < MIN_SELECTION) {
+        return null
+      }
+      return prev
+    })
+  }
+
+  const clearSelection = () => {
+    setSelection(null)
+    dragStartRef.current = null
+    setIsSelecting(false)
+  }
+
+  const showZoom = Boolean(selection && mjpegUrl && status === 'playing')
+
+  let zoomStyles: React.CSSProperties | undefined
+  if (selection && selection.width > 0 && selection.height > 0) {
+    const widthPercent = 100 / Math.max(selection.width, 0.0001)
+    const heightPercent = 100 / Math.max(selection.height, 0.0001)
+    const leftPercent = (-selection.x * 100) / Math.max(selection.width, 0.0001)
+    const topPercent = (-selection.y * 100) / Math.max(selection.height, 0.0001)
+    zoomStyles = {
+      position: 'absolute',
+      width: `${widthPercent}%`,
+      height: `${heightPercent}%`,
+      left: `${leftPercent}%`,
+      top: `${topPercent}%`
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
+      <div
+        ref={containerRef}
+        className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black"
+        onPointerDown={handlePointerDown}
+        onPointerMove={updateSelection}
+        onPointerUp={finalizeSelection}
+        onPointerLeave={finalizeSelection}
+        onDoubleClick={clearSelection}
+        role="presentation"
+        style={{ touchAction: 'none' }}
+      >
         {mjpegUrl ? (
           <>
             {(status === 'loading') && (
@@ -82,6 +186,11 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
               onLoad={() => setStatus('playing')}
               onError={() => setStatus('error')}
             />
+            {selection && !isSelecting && (
+              <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-md bg-background/70 px-3 py-1 text-xs text-foreground">
+                Zooming on selected region • Double-click to reset
+              </div>
+            )}
           </>
         ) : (
           <Player
@@ -93,7 +202,43 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
             height="100%"
           />
         )}
+        {selection && status !== 'error' && (
+          <div
+            className="pointer-events-none absolute border-2 border-primary/80 bg-primary/20"
+            style={{
+              left: `${selection.x * 100}%`,
+              top: `${selection.y * 100}%`,
+              width: `${selection.width * 100}%`,
+              height: `${selection.height * 100}%`
+            }}
+          />
+        )}
+        {!selection && canSelect && status === 'playing' && (
+          <div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-md bg-background/70 px-3 py-1 text-xs text-foreground">
+            Click and drag to zoom • Double-click to reset
+          </div>
+        )}
       </div>
+      {showZoom && zoomStyles && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-muted-foreground">Zoom preview</div>
+          <div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
+            <img
+              src={mjpegUrl as string}
+              alt={`${title} zoomed preview`}
+              className="absolute h-full w-full object-cover"
+              style={zoomStyles}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Reset zoom
+          </button>
+        </div>
+      )}
       {(details.message || note || (!restreamAvailable && !mjpegUrl)) && (
         <Alert>
           <AlertDescription>
