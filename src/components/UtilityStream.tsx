@@ -57,11 +57,15 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const [selection, setSelection] = useState<SelectionRect | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
   const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const isSelectingRef = useRef(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
+  const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
 
   useEffect(() => {
     setStatus(mjpegUrl ? 'loading' : 'idle')
     setSelection(null)
+    isSelectingRef.current = false
   }, [mjpegUrl])
 
   useEffect(() => {
@@ -83,26 +87,27 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
   const MIN_SELECTION = 0.05
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!canSelect || !containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const x = clamp((event.clientX - rect.left) / rect.width)
-    const y = clamp((event.clientY - rect.top) / rect.height)
-    dragStartRef.current = { x, y }
-    setSelection({ x, y, width: 0, height: 0 })
-    setIsSelecting(true)
-    try {
-      containerRef.current.setPointerCapture(event.pointerId)
-    } catch {
-      // ignore
+  const removeGlobalListeners = () => {
+    if (moveListenerRef.current) {
+      window.removeEventListener('pointermove', moveListenerRef.current)
+      moveListenerRef.current = null
+    }
+    if (upListenerRef.current) {
+      window.removeEventListener('pointerup', upListenerRef.current)
+      window.removeEventListener('pointercancel', upListenerRef.current)
+      upListenerRef.current = null
     }
   }
 
-  const updateSelection = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isSelecting || !dragStartRef.current || !containerRef.current) return
+  useEffect(() => () => removeGlobalListeners(), [])
+
+  const updateSelectionFromClient = (clientX: number, clientY: number) => {
+    if (!isSelectingRef.current || !dragStartRef.current || !containerRef.current) {
+      return
+    }
     const rect = containerRef.current.getBoundingClientRect()
-    const x = clamp((event.clientX - rect.left) / rect.width)
-    const y = clamp((event.clientY - rect.top) / rect.height)
+    const x = clamp((clientX - rect.left) / rect.width)
+    const y = clamp((clientY - rect.top) / rect.height)
     const start = dragStartRef.current
     const left = Math.min(start.x, x)
     const top = Math.min(start.y, y)
@@ -111,8 +116,41 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     setSelection({ x: left, y: top, width, height })
   }
 
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canSelect || !containerRef.current) return
+    event.preventDefault()
+    const rect = containerRef.current.getBoundingClientRect()
+    const x = clamp((event.clientX - rect.left) / rect.width)
+    const y = clamp((event.clientY - rect.top) / rect.height)
+    dragStartRef.current = { x, y }
+    setSelection({ x, y, width: 0, height: 0 })
+    setIsSelecting(true)
+    isSelectingRef.current = true
+
+    const handleMove = (nativeEvent: PointerEvent) => {
+      updateSelectionFromClient(nativeEvent.clientX, nativeEvent.clientY)
+    }
+
+    const handleUp = (nativeEvent: PointerEvent) => {
+      finalizeSelection()
+      removeGlobalListeners()
+    }
+
+    moveListenerRef.current = handleMove
+    upListenerRef.current = handleUp
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleUp)
+  }
+
+  const updateSelection = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSelectingRef.current) return
+    updateSelectionFromClient(event.clientX, event.clientY)
+  }
+
   const finalizeSelection = (event?: React.PointerEvent<HTMLDivElement>) => {
-    if (!isSelecting) return
+    if (!isSelectingRef.current) return
     if (event && containerRef.current) {
       try {
         containerRef.current.releasePointerCapture(event.pointerId)
@@ -121,6 +159,7 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       }
     }
     setIsSelecting(false)
+    isSelectingRef.current = false
     dragStartRef.current = null
     setSelection(prev => {
       if (!prev) return null
@@ -129,12 +168,15 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       }
       return prev
     })
+    removeGlobalListeners()
   }
 
   const clearSelection = () => {
     setSelection(null)
     dragStartRef.current = null
     setIsSelecting(false)
+    isSelectingRef.current = false
+    removeGlobalListeners()
   }
 
   const showZoom = Boolean(selection && mjpegUrl && status === 'playing')
@@ -162,7 +204,6 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
         onPointerDown={handlePointerDown}
         onPointerMove={updateSelection}
         onPointerUp={finalizeSelection}
-        onPointerLeave={finalizeSelection}
         onDoubleClick={clearSelection}
         role="presentation"
         style={{ touchAction: 'none' }}
