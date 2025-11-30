@@ -65,6 +65,8 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const [frameSize, setFrameSize] = useState<{ width: number; height: number } | null>(null)
+  const dragModeRef = useRef<'idle' | 'draw' | 'move'>('idle')
+  const moveOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
 
   useEffect(() => {
     setStatus(mjpegUrl ? 'loading' : 'idle')
@@ -93,6 +95,8 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
   const MIN_SELECTION = 0.05
 
+   const containerSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 })
+
   function removeGlobalListeners() {
     if (moveListenerRef.current) {
       window.removeEventListener('pointermove', moveListenerRef.current)
@@ -106,28 +110,67 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   }
 
   const updateSelectionFromClient = (clientX: number, clientY: number) => {
-    if (!isSelectingRef.current || !dragStartRef.current || !containerRef.current) {
+    if (!isSelectingRef.current || !containerRef.current) {
       return
     }
-    const rect = containerRef.current.getBoundingClientRect()
+      const rect = containerRef.current.getBoundingClientRect()
+      containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((clientX - rect.left) / rect.width)
     const y = clamp((clientY - rect.top) / rect.height)
-    const start = dragStartRef.current
-    const left = Math.min(start.x, x)
-    const top = Math.min(start.y, y)
-    const width = Math.abs(x - start.x)
-    const height = Math.abs(y - start.y)
-    setSelection({ x: left, y: top, width, height })
+    if (dragModeRef.current === 'move') {
+      setSelection(prev => {
+        if (!prev) return prev
+        const width = prev.width
+        const height = prev.height
+        const tentativeX = clamp(x - moveOffsetRef.current.dx)
+        const tentativeY = clamp(y - moveOffsetRef.current.dy)
+        const clampedX = Math.min(Math.max(tentativeX, 0), 1 - width)
+        const clampedY = Math.min(Math.max(tentativeY, 0), 1 - height)
+        if (clampedX === prev.x && clampedY === prev.y) {
+          return prev
+        }
+        return { ...prev, x: clampedX, y: clampedY }
+      })
+    } else {
+      const start = dragStartRef.current
+      if (!start) return
+      const left = Math.min(start.x, x)
+      const top = Math.min(start.y, y)
+      const width = Math.abs(x - start.x)
+      const height = Math.abs(y - start.y)
+      setSelection({ x: left, y: top, width, height })
+    }
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!canSelect || !containerRef.current) return
     event.preventDefault()
     const rect = containerRef.current.getBoundingClientRect()
+      containerSizeRef.current = { width: rect.width, height: rect.height }
     const x = clamp((event.clientX - rect.left) / rect.width)
     const y = clamp((event.clientY - rect.top) / rect.height)
-    dragStartRef.current = { x, y }
-    setSelection({ x, y, width: 0, height: 0 })
+    const pointer = { x, y }
+    const existing = selection
+
+    if (
+      existing &&
+      pointer.x >= existing.x &&
+      pointer.x <= existing.x + existing.width &&
+      pointer.y >= existing.y &&
+      pointer.y <= existing.y + existing.height
+    ) {
+      dragModeRef.current = 'move'
+      moveOffsetRef.current = {
+        dx: pointer.x - existing.x,
+        dy: pointer.y - existing.y
+      }
+      dragStartRef.current = null
+    } else {
+      dragModeRef.current = 'draw'
+      dragStartRef.current = pointer
+      setSelection({ x: pointer.x, y: pointer.y, width: 0, height: 0 })
+    }
+
     setIsSelecting(true)
     isSelectingRef.current = true
 
@@ -165,13 +208,15 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     setIsSelecting(false)
     isSelectingRef.current = false
     dragStartRef.current = null
+    const currentMode = dragModeRef.current
     setSelection(prev => {
       if (!prev) return null
-      if (prev.width < MIN_SELECTION || prev.height < MIN_SELECTION) {
+      if (currentMode === 'draw' && (prev.width < MIN_SELECTION || prev.height < MIN_SELECTION)) {
         return null
       }
       return prev
     })
+    dragModeRef.current = 'idle'
     removeGlobalListeners()
   }
 
@@ -180,7 +225,12 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     dragStartRef.current = null
     setIsSelecting(false)
     isSelectingRef.current = false
+    dragModeRef.current = 'idle'
     removeGlobalListeners()
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
   }
 
   const handleImageLoad = (event: React.SyntheticEvent<HTMLImageElement>) => {
