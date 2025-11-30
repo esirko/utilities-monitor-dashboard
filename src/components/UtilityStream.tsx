@@ -22,7 +22,7 @@ function getStreamDetails(url?: string | null) {
   if (!url || !isValidUrl(url)) {
     return {
       isValid: false,
-      message: 'No stream URL available. Configure the backend GAS_RSTP_URL/WATER_RSTP_URL to enable live video.',
+      message: 'No stream URL available. Configure the backend GAS_RTSP_URL/WATER_RTSP_URL to enable live video.',
       protocol: null as string | null
     }
   }

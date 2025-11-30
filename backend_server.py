@@ -61,8 +61,8 @@ ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
 SYSTEM_NAME = os.environ.get('SYSTEM_NAME', 'Home')
 DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
 VERBOSE_LOGGING = os.environ.get('VERBOSE_LOGGING', 'false').lower() == 'true'  # Enable verbose device usage logging
-GAS_RSTP_URL = os.environ.get('GAS_RSTP_URL') or os.environ.get('GAS_RTSP_URL', '')
-WATER_RSTP_URL = os.environ.get('WATER_RSTP_URL') or os.environ.get('WATER_RTSP_URL', '')
+GAS_RTSP_URL = os.environ.get('GAS_RTSP_URL', '')
+WATER_RTSP_URL = os.environ.get('WATER_RTSP_URL', '')
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -707,16 +707,16 @@ def get_config():
     return jsonify({
         'electricityRate': ELECTRICITY_RATE,
         'systemName': SYSTEM_NAME,
-        'gasStreamUrl': GAS_RSTP_URL,
-        'waterStreamUrl': WATER_RSTP_URL
+        'gasStreamUrl': GAS_RTSP_URL,
+        'waterStreamUrl': WATER_RTSP_URL
     })
 
 @app.route('/api/streams', methods=['GET'])
 def get_stream_urls():
     """Public endpoint exposing utility stream URLs"""
     return jsonify({
-        'gas': GAS_RSTP_URL,
-        'water': WATER_RSTP_URL
+        'gas': GAS_RTSP_URL,
+        'water': WATER_RTSP_URL
     })
 
 @app.route('/', methods=['GET'])
