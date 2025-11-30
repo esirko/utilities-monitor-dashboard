@@ -322,10 +322,6 @@ function App() {
             </div>
           </header>
           
-          <div className="flex justify-center mb-4">
-            <Clock />
-          </div>
-          
           {realDataError && dataMode === 'real' && (
             <Alert variant="destructive">
               <AlertDescription>
@@ -522,7 +518,12 @@ function App() {
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
         <Card className="flex items-center justify-between gap-3 p-3 shadow-sm sm:p-4">
           <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-            {utilitiesTitle}
+            <span className="inline-flex items-center gap-3 text-left">
+              <span>{utilitiesTitle}</span>
+              <span className="inline-flex">
+                <Clock />
+              </span>
+            </span>
           </h1>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2">
