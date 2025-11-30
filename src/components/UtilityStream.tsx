@@ -74,6 +74,8 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
     }
   }, [status])
 
+  useEffect(() => () => removeGlobalListeners(), [])
+
   if (!details.isValid) {
     return (
       <Alert variant="destructive">
@@ -87,7 +89,7 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
   const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
   const MIN_SELECTION = 0.05
 
-  const removeGlobalListeners = () => {
+  function removeGlobalListeners() {
     if (moveListenerRef.current) {
       window.removeEventListener('pointermove', moveListenerRef.current)
       moveListenerRef.current = null
@@ -98,8 +100,6 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       upListenerRef.current = null
     }
   }
-
-  useEffect(() => () => removeGlobalListeners(), [])
 
   const updateSelectionFromClient = (clientX: number, clientY: number) => {
     if (!isSelectingRef.current || !dragStartRef.current || !containerRef.current) {
