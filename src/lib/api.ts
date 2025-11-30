@@ -175,11 +175,13 @@ export const api = {
     return data.dataPoints || []
   },
 
-  async getConfig(): Promise<{ electricityRate: number; systemName: string }> {
+  async getConfig(): Promise<{ electricityRate: number; systemName: string; gasStreamUrl?: string; waterStreamUrl?: string }> {
     const data = await fetchWithAuth('/api/config')
     return {
       electricityRate: data.electricityRate || 0.314555,
-      systemName: data.systemName || 'Home'
+      systemName: data.systemName || 'Home',
+      gasStreamUrl: data.gasStreamUrl,
+      waterStreamUrl: data.waterStreamUrl
     }
   },
 
@@ -225,6 +227,23 @@ export const api = {
         throw error
       }
       throw new ApiError('Failed to connect to server. Make sure the backend is running.')
+    }
+  },
+
+  async getStreamUrls(): Promise<{ gas?: string; water?: string }> {
+    try {
+      const response = await fetch(`${API_URL}/api/streams`)
+      if (!response.ok) {
+        return { gas: undefined, water: undefined }
+      }
+      const data = await response.json()
+      return {
+        gas: data.gas || data.gasStreamUrl || undefined,
+        water: data.water || data.waterStreamUrl || undefined
+      }
+    } catch (error) {
+      console.error('Failed to load stream URLs from backend:', error)
+      return { gas: undefined, water: undefined }
     }
   },
 }

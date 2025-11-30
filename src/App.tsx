@@ -10,6 +10,7 @@ import { DeviceList } from '@/components/DeviceList'
 import { TotalUsage } from '@/components/TotalUsage'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
+import { UtilityStream } from '@/components/UtilityStream'
 import { useEnergyData } from '@/hooks/use-energy-data'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { energySimulator } from '@/lib/energySimulator'
@@ -35,6 +36,8 @@ function App() {
     water: true
   })
   const [splitOrientation, setSplitOrientation] = useState<SplitOrientation>('horizontal')
+  const [gasStreamUrl, setGasStreamUrl] = useState<string | null>(null)
+  const [waterStreamUrl, setWaterStreamUrl] = useState<string | null>(null)
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -96,6 +99,12 @@ function App() {
           const config = await api.getConfig()
           setElectricityRate(config.electricityRate)
           setSystemName(config.systemName)
+          if (config.gasStreamUrl !== undefined) {
+            setGasStreamUrl(config.gasStreamUrl || null)
+          }
+          if (config.waterStreamUrl !== undefined) {
+            setWaterStreamUrl(config.waterStreamUrl || null)
+          }
         } catch (err) {
           console.error('Failed to fetch config from backend:', err)
         }
@@ -103,6 +112,21 @@ function App() {
       fetchConfig()
     }
   }, [dataMode, isAuthenticated])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadStreams = async () => {
+      const streams = await api.getStreamUrls()
+      if (!cancelled) {
+        setGasStreamUrl(streams.gas ?? null)
+        setWaterStreamUrl(streams.water ?? null)
+      }
+    }
+    loadStreams()
+    return () => {
+      cancelled = true
+    }
+  }, [])
   
   const currentTotal = useMemo(() => {
     if (dataPoints.length === 0) return 0
@@ -206,7 +230,8 @@ function App() {
   const renderPlaceholderPane = (
     title: string,
     description: string,
-    cards: Array<{ title: string; body: string }>
+    cards: Array<{ title: string; body: string }>,
+    streamUrl?: string | null
   ) => (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
@@ -214,13 +239,20 @@ function App() {
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-        <div className="grid gap-4 md:grid-cols-2">
-          {cards.map(card => (
-            <Card key={card.title} className="border-dashed bg-card/40 p-4">
-              <h3 className="text-sm font-semibold">{card.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{card.body}</p>
-            </Card>
-          ))}
+        <div className="space-y-6">
+          <UtilityStream
+            url={streamUrl}
+            title={`${title} stream`}
+            note="Configure the backend to restream RTSP feeds to HLS/WebRTC for best browser compatibility."
+          />
+          <div className="grid gap-4 md:grid-cols-2">
+            {cards.map(card => (
+              <Card key={card.title} className="border-dashed bg-card/40 p-4">
+                <h3 className="text-sm font-semibold">{card.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{card.body}</p>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -246,7 +278,8 @@ function App() {
         title: 'Next steps',
         body: 'Capture integration tasks, API needs, or notifications you want to add once the feature ships.'
       }
-    ]
+    ],
+    gasStreamUrl
   )
 
   const waterPane = renderPlaceholderPane(
@@ -269,7 +302,8 @@ function App() {
         title: 'Collaboration notes',
         body: 'Assign follow-ups, jot meeting notes, or track approvals from partner teams in one place.'
       }
-    ]
+    ],
+    waterStreamUrl
   )
 
   const electricityPane = (!isAuthenticated && !isDemoMode) ? (
