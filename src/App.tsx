@@ -20,7 +20,7 @@ import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/reac
 
 type DataMode = 'demo' | 'real'
 
-type PaneKey = 'emporia' | 'automation' | 'insights'
+type PaneKey = 'electricity' | 'gas' | 'water'
 type LayoutMode = 'single' | 'dual-horizontal' | 'dual-vertical' | 'triple'
 type PaneSlot = 'primary' | 'secondary' | 'tertiary'
 
@@ -33,9 +33,9 @@ function App() {
   const timeRange = TIME_RANGES[selectedRange]
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('single')
   const [paneAssignments, setPaneAssignments] = useState<Record<PaneSlot, PaneKey>>({
-    primary: 'emporia',
-    secondary: 'automation',
-    tertiary: 'insights'
+    primary: 'electricity',
+    secondary: 'gas',
+    tertiary: 'water'
   })
   
   useEffect(() => {
@@ -180,17 +180,17 @@ function App() {
   }
 
   const paneMeta: Record<PaneKey, { label: string; description: string }> = {
-    emporia: {
-      label: 'Emporia Portal',
+    electricity: {
+      label: 'Electricity via Emporia',
       description: 'Live Emporia Vue account dashboard'
     },
-    automation: {
-      label: 'Automation Studio',
-      description: 'Design and test upcoming automation flows'
+    gas: {
+      label: 'Gas',
+      description: 'Upcoming controls and analytics for gas utilities'
     },
-    insights: {
-      label: 'Insights Notebook',
-      description: 'Collect research notes and analytics ideas'
+    water: {
+      label: 'Water',
+      description: 'Placeholder workspace for water usage insights'
     }
   }
   const paneKeys = Object.keys(paneMeta) as PaneKey[]
@@ -231,9 +231,9 @@ function App() {
     </div>
   )
 
-  const automationPane = renderPlaceholderPane(
-    'Automation Studio',
-    'Prototype future automations, schedules, and device routines in this workspace.',
+  const gasPane = renderPlaceholderPane(
+    'Gas',
+    'Capture upcoming gas utility tooling, safety automations, and monitoring plans.',
     [
       {
         title: 'Trigger ideas',
@@ -254,9 +254,9 @@ function App() {
     ]
   )
 
-  const insightsPane = renderPlaceholderPane(
-    'Insights Notebook',
-    'Track observations, analysis questions, and follow-ups alongside your energy data.',
+  const waterPane = renderPlaceholderPane(
+    'Water',
+    'Draft dashboards, alerts, and conservation ideas for water usage.',
     [
       {
         title: 'Observation log',
@@ -277,7 +277,7 @@ function App() {
     ]
   )
 
-  const emporiaPane = (
+  const electricityPane = (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-6 px-4 py-6 md:px-6">
@@ -288,7 +288,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Energy Monitor {!isDemoMode && systemName && `- ${systemName}`}
+                  Electricity via Emporia
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
@@ -411,19 +411,19 @@ function App() {
   )
 
   const paneContentMap: Record<PaneKey, ReactNode> = {
-    emporia: emporiaPane,
-    automation: automationPane,
-    insights: insightsPane
+    electricity: electricityPane,
+    gas: gasPane,
+    water: waterPane
   }
 
   const renderAssignmentSelect = (slot: PaneSlot, label: string, isVisible: boolean) => {
     if (!isVisible) return null
     return (
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
         <Select value={paneAssignments[slot]} onValueChange={(value) => updatePaneAssignment(slot, value as PaneKey)}>
-          <SelectTrigger size="sm" className="min-w-[12rem] bg-background/80">
-            <SelectValue />
+          <SelectTrigger size="sm" className="min-w-[11rem] bg-background/80">
+            <SelectValue placeholder="Select pane" />
           </SelectTrigger>
           <SelectContent>
             {paneKeys.map(option => (
@@ -525,17 +525,16 @@ function App() {
 
   const tertiaryLabel = 'Supporting Pane'
 
+  const utilitiesTitle = `Utilities monitor${!isDemoMode && systemName ? ` - ${systemName}` : ''}`
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
-        <Card className="flex flex-col gap-4 p-4 shadow-sm">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">Workspace layout</h2>
-            <p className="text-sm text-muted-foreground">
-              Arrange the Emporia portal alongside upcoming modules. Choose a layout and assign panes to each slot.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        <Card className="flex flex-col gap-3 p-3 sm:p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+              {utilitiesTitle}
+            </h1>
             <ToggleGroup
               type="single"
               value={layoutMode}
@@ -549,7 +548,7 @@ function App() {
               <ToggleGroupItem value="triple">1 : 2</ToggleGroupItem>
             </ToggleGroup>
           </div>
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end gap-3">
             {renderAssignmentSelect('primary', primaryLabel, true)}
             {renderAssignmentSelect('secondary', secondaryLabel, showSecondary)}
             {renderAssignmentSelect('tertiary', tertiaryLabel, showTertiary)}
