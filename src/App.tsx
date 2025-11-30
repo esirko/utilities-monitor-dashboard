@@ -251,7 +251,12 @@ function App() {
             mjpegUrl={stream?.mjpeg ?? null}
             restreamAvailable={stream?.restreamAvailable}
             title={`${title} stream`}
-            note={stream?.restreamAvailable ? undefined : 'Configure the backend restreamer to expose RTSP as MJPEG/WebRTC for browser playback.'}
+            note={stream?.mjpeg
+              ? 'Drag on the video to select a region to zoom. Double-click or use reset to clear the selection.'
+              : (!stream?.restreamAvailable
+                ? 'Backend restreaming is disabled. Install the restream dependencies or expose an MJPEG/WebRTC feed for browser playback.'
+                : undefined)
+            }
           />
           <div className="grid gap-4 md:grid-cols-2">
             {cards.map(card => (
