@@ -4,7 +4,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Switch } from '@/components/ui/switch'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { EnergyChart } from '@/components/EnergyChart'
 import { DeviceList } from '@/components/DeviceList'
@@ -194,16 +193,17 @@ function App() {
   }
   const paneKeys = Object.keys(paneMeta) as PaneKey[]
 
-  const handlePaneVisibilityChange = (pane: PaneKey, shouldShow: boolean) => {
+  const handlePaneSelectionChange = (values: string[]) => {
+    const typedValues = values.filter((value): value is PaneKey => paneKeys.includes(value as PaneKey))
+    if (typedValues.length === 0) {
+      return
+    }
     setPaneVisibility(prev => {
-      const activeCount = paneKeys.reduce((count, key) => count + (prev[key] ? 1 : 0), 0)
-      if (!shouldShow && activeCount <= 1) {
-        return prev
-      }
-      return {
-        ...prev,
-        [pane]: shouldShow
-      }
+      const next = { ...prev }
+      paneKeys.forEach(key => {
+        next[key] = typedValues.includes(key)
+      })
+      return next
     })
   }
 
@@ -512,16 +512,33 @@ function App() {
   }
 
   const utilitiesTitle = `Utilities monitor${!isDemoMode && systemName ? ` - ${systemName}` : ''}`
-  const orientationLabel = visiblePanes.length === 2 ? 'Layout direction' : 'Primary split direction'
+  const orientationLabel = visiblePanes.length === 2 ? 'Layout' : 'Split'
+  const utilitiesToggleValues = visiblePanes
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
-        <Card className="flex flex-col gap-3 p-3 sm:p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-              {utilitiesTitle}
-            </h1>
+        <Card className="flex items-center justify-between gap-3 p-3 shadow-sm sm:p-4">
+          <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+            {utilitiesTitle}
+          </h1>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Utilities</span>
+              <ToggleGroup
+                type="multiple"
+                value={utilitiesToggleValues}
+                onValueChange={handlePaneSelectionChange}
+                variant="outline"
+                size="sm"
+              >
+                {paneKeys.map((pane) => (
+                  <ToggleGroupItem key={pane} value={pane} className="capitalize">
+                    {paneMeta[pane].label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
             {visiblePanes.length >= 2 && (
               <div className="flex items-center gap-2">
                 <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -539,32 +556,6 @@ function App() {
                 </ToggleGroup>
               </div>
             )}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {paneKeys.map(pane => {
-              const paneId = `pane-${pane}`
-              return (
-                <div
-                  key={pane}
-                  className="flex items-center gap-3 rounded-md border border-border/60 bg-background/70 px-3 py-2"
-                >
-                  <Switch
-                    id={paneId}
-                    checked={paneVisibility[pane]}
-                    onCheckedChange={(checked) => handlePaneVisibilityChange(pane, checked)}
-                    aria-label={paneMeta[pane].label}
-                  />
-                  <div className="flex min-w-[9rem] flex-col gap-1">
-                    <label htmlFor={paneId} className="text-sm font-medium leading-tight">
-                      {paneMeta[pane].label}
-                    </label>
-                    <p className="text-2xs leading-snug text-muted-foreground">
-                      {paneMeta[pane].description}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
           </div>
         </Card>
         <div className="rounded-xl border bg-card/40 shadow-sm">
