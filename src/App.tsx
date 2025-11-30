@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { EnergyChart } from '@/components/EnergyChart'
 import { DeviceList } from '@/components/DeviceList'
@@ -21,8 +21,7 @@ import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/reac
 type DataMode = 'demo' | 'real'
 
 type PaneKey = 'electricity' | 'gas' | 'water'
-type LayoutMode = 'single' | 'dual-horizontal' | 'dual-vertical' | 'triple'
-type PaneSlot = 'primary' | 'secondary' | 'tertiary'
+type SplitOrientation = 'horizontal' | 'vertical'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -31,12 +30,12 @@ function App() {
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const [isPaused, setIsPaused] = useState(false)
   const timeRange = TIME_RANGES[selectedRange]
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('single')
-  const [paneAssignments, setPaneAssignments] = useState<Record<PaneSlot, PaneKey>>({
-    primary: 'electricity',
-    secondary: 'gas',
-    tertiary: 'water'
+  const [paneVisibility, setPaneVisibility] = useState<Record<PaneKey, boolean>>({
+    electricity: true,
+    gas: true,
+    water: true
   })
+  const [splitOrientation, setSplitOrientation] = useState<SplitOrientation>('horizontal')
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -195,16 +194,16 @@ function App() {
   }
   const paneKeys = Object.keys(paneMeta) as PaneKey[]
 
-  const updatePaneAssignment = (slot: PaneSlot, nextPane: PaneKey) => {
-    setPaneAssignments(prev => {
-      if (prev[slot] === nextPane) return prev
-      const updated: Record<PaneSlot, PaneKey> = { ...prev }
-      const conflict = (Object.entries(prev).find(([, pane]) => pane === nextPane)?.[0] as PaneSlot | undefined)
-      if (conflict) {
-        updated[conflict] = prev[slot]
+  const handlePaneVisibilityChange = (pane: PaneKey, shouldShow: boolean) => {
+    setPaneVisibility(prev => {
+      const activeCount = paneKeys.reduce((count, key) => count + (prev[key] ? 1 : 0), 0)
+      if (!shouldShow && activeCount <= 1) {
+        return prev
       }
-      updated[slot] = nextPane
-      return updated
+      return {
+        ...prev,
+        [pane]: shouldShow
+      }
     })
   }
 
@@ -415,32 +414,19 @@ function App() {
     gas: gasPane,
     water: waterPane
   }
-
-  const renderAssignmentSelect = (slot: PaneSlot, label: string, isVisible: boolean) => {
-    if (!isVisible) return null
-    return (
-      <div className="flex flex-col gap-1">
-        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-        <Select value={paneAssignments[slot]} onValueChange={(value) => updatePaneAssignment(slot, value as PaneKey)}>
-          <SelectTrigger size="sm" className="min-w-[11rem] bg-background/80">
-            <SelectValue placeholder="Select pane" />
-          </SelectTrigger>
-          <SelectContent>
-            {paneKeys.map(option => (
-              <SelectItem key={option} value={option}>
-                {paneMeta[option].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    )
-  }
+  const visiblePanes = paneKeys.filter((key): key is PaneKey => paneVisibility[key])
+  const orderedPanes = visiblePanes.includes('electricity')
+    ? (['electricity', ...visiblePanes.filter(key => key !== 'electricity')])
+    : visiblePanes
 
   const renderLayout = () => {
-    const primary = paneAssignments.primary
-    const secondary = paneAssignments.secondary
-    const tertiary = paneAssignments.tertiary
+    if (orderedPanes.length === 0) {
+      return (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          Enable at least one pane to get started.
+        </div>
+      )
+    }
 
     const panel = (key: PaneKey) => (
       <div className="h-full" key={key}>
@@ -448,110 +434,137 @@ function App() {
       </div>
     )
 
-    switch (layoutMode) {
-      case 'single':
-        return (
-          <div className="h-full">
-            {panel(primary)}
-          </div>
-        )
-      case 'dual-horizontal':
-        return (
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-              {panel(primary)}
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-              {panel(secondary)}
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )
-      case 'dual-vertical':
-        return (
-          <ResizablePanelGroup direction="vertical" className="h-full">
-            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-              {panel(primary)}
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-              {panel(secondary)}
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )
-      case 'triple':
-        return (
-          <ResizablePanelGroup direction="horizontal" className="h-full">
-            <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
-              {panel(primary)}
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
-              <ResizablePanelGroup direction="vertical" className="h-full">
-                <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-                  {panel(secondary)}
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
-                  {panel(tertiary)}
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )
-      default:
-        return null
+    if (orderedPanes.length === 1) {
+      return <div className="h-full">{panel(orderedPanes[0])}</div>
     }
+
+    if (orderedPanes.length === 2) {
+      const [first, second] = orderedPanes
+      if (splitOrientation === 'horizontal') {
+        return (
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(first)}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(second)}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        )
+      }
+      return (
+        <ResizablePanelGroup direction="vertical" className="h-full">
+          <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+            {panel(first)}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+            {panel(second)}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )
+    }
+
+    const [first, second, third] = orderedPanes
+
+    if (splitOrientation === 'horizontal') {
+      return (
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
+            {panel(first)}
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
+            <ResizablePanelGroup direction="vertical" className="h-full">
+              <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+                {panel(second)}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+                {panel(third)}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )
+    }
+
+    return (
+      <ResizablePanelGroup direction="vertical" className="h-full">
+        <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
+          {panel(first)}
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
+          <ResizablePanelGroup direction="horizontal" className="h-full">
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(second)}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
+              {panel(third)}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    )
   }
 
-  const showSecondary = layoutMode !== 'single'
-  const showTertiary = layoutMode === 'triple'
-
-  const primaryLabel =
-    layoutMode === 'single'
-      ? 'Fullscreen Pane'
-      : layoutMode === 'dual-horizontal'
-        ? 'Left Pane'
-        : layoutMode === 'dual-vertical'
-          ? 'Top Pane'
-          : 'Main Pane'
-
-  const secondaryLabel =
-    layoutMode === 'dual-horizontal'
-      ? 'Right Pane'
-      : layoutMode === 'dual-vertical'
-        ? 'Bottom Pane'
-        : 'Secondary Pane'
-
-  const tertiaryLabel = 'Supporting Pane'
-
   const utilitiesTitle = `Utilities monitor${!isDemoMode && systemName ? ` - ${systemName}` : ''}`
+  const orientationLabel = visiblePanes.length === 2 ? 'Layout direction' : 'Primary split direction'
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
         <Card className="flex flex-col gap-3 p-3 sm:p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
               {utilitiesTitle}
             </h1>
-            <ToggleGroup
-              type="single"
-              value={layoutMode}
-              onValueChange={(value) => value && setLayoutMode(value as LayoutMode)}
-              variant="outline"
-              size="sm"
-            >
-              <ToggleGroupItem value="single">Single</ToggleGroupItem>
-              <ToggleGroupItem value="dual-horizontal">Split H</ToggleGroupItem>
-              <ToggleGroupItem value="dual-vertical">Split V</ToggleGroupItem>
-              <ToggleGroupItem value="triple">1 : 2</ToggleGroupItem>
-            </ToggleGroup>
+            {visiblePanes.length >= 2 && (
+              <div className="flex items-center gap-2">
+                <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {orientationLabel}
+                </span>
+                <ToggleGroup
+                  type="single"
+                  value={splitOrientation}
+                  onValueChange={(value) => value && setSplitOrientation(value as SplitOrientation)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="horizontal">Horizontal</ToggleGroupItem>
+                  <ToggleGroupItem value="vertical">Vertical</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap items-end gap-3">
-            {renderAssignmentSelect('primary', primaryLabel, true)}
-            {renderAssignmentSelect('secondary', secondaryLabel, showSecondary)}
-            {renderAssignmentSelect('tertiary', tertiaryLabel, showTertiary)}
+          <div className="flex flex-wrap gap-3">
+            {paneKeys.map(pane => {
+              const paneId = `pane-${pane}`
+              return (
+                <div
+                  key={pane}
+                  className="flex items-center gap-3 rounded-md border border-border/60 bg-background/70 px-3 py-2"
+                >
+                  <Switch
+                    id={paneId}
+                    checked={paneVisibility[pane]}
+                    onCheckedChange={(checked) => handlePaneVisibilityChange(pane, checked)}
+                    aria-label={paneMeta[pane].label}
+                  />
+                  <div className="flex min-w-[9rem] flex-col gap-1">
+                    <label htmlFor={paneId} className="text-sm font-medium leading-tight">
+                      {paneMeta[pane].label}
+                    </label>
+                    <p className="text-2xs leading-snug text-muted-foreground">
+                      {paneMeta[pane].description}
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </Card>
         <div className="rounded-xl border bg-card/40 shadow-sm">
