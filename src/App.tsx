@@ -173,10 +173,6 @@ function App() {
     setIsPaused(false)
   }
   
-  if (!isAuthenticated && !isDemoMode) {
-    return <LoginForm onLoginSuccess={handleLoginSuccess} onDemoMode={handleDemoMode} />
-  }
-
   const paneMeta: Record<PaneKey, { label: string; description: string }> = {
     electricity: {
       label: 'Electricity',
@@ -276,7 +272,13 @@ function App() {
     ]
   )
 
-  const electricityPane = (
+  const electricityPane = (!isAuthenticated && !isDemoMode) ? (
+    <div className="flex h-full items-center justify-center overflow-hidden bg-background px-4 py-6">
+      <div className="w-full max-w-md">
+        <LoginForm onLoginSuccess={handleLoginSuccess} onDemoMode={handleDemoMode} />
+      </div>
+    </div>
+  ) : (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-6 px-4 py-6 md:px-6">
@@ -415,8 +417,8 @@ function App() {
     water: waterPane
   }
   const visiblePanes = paneKeys.filter((key): key is PaneKey => paneVisibility[key])
-  const orderedPanes = visiblePanes.includes('electricity')
-    ? (['electricity', ...visiblePanes.filter(key => key !== 'electricity')])
+  const orderedPanes: PaneKey[] = visiblePanes.includes('electricity')
+    ? (['electricity', ...visiblePanes.filter(key => key !== 'electricity')] as PaneKey[])
     : visiblePanes
 
   const renderLayout = () => {
