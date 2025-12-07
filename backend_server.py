@@ -52,6 +52,7 @@ import os
 import time
 from functools import wraps
 import json
+from urllib.parse import urlparse, urlunparse
 
 try:
     import cv2  # type: ignore[import-not-found]
@@ -108,16 +109,59 @@ ENV_LOCAL_VALUES = _load_env_local(ENV_FILE_PATH)
 
 
 def _get_config_value(key: str, default: str | None = None) -> str | None:
-    """Fetch configuration preferring environment overrides, then .env.local, then default."""
-    env_value = os.environ.get(key)
-    if env_value is not None:
-        return env_value
-
-    file_value = ENV_LOCAL_VALUES.get(key)
-    if file_value is not None:
-        return file_value
-
+    """Fetch a configuration value using env vars to override .env.local values."""
+    if key in os.environ:
+        return os.environ.get(key)
+    value = ENV_LOCAL_VALUES.get(key)
+    if value is not None:
+        return value
     return default
+
+
+def _mask_secret(value: str | None) -> str:
+    if not value:
+        return ''
+    if len(value) <= 4:
+        return '***'
+    return f"{value[:2]}***{value[-2:]}"
+
+
+def _mask_url_credentials(url: str | None) -> str | None:
+    if not url:
+        return url
+
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return url
+
+    if parsed.username is None and parsed.password is None:
+        return url
+
+    hostname = parsed.hostname or ''
+    if ':' in hostname and not hostname.startswith('['):
+        hostname = f"[{hostname}]"
+
+    port = f":{parsed.port}" if parsed.port else ''
+
+    userinfo = ''
+    if parsed.username:
+        userinfo = parsed.username
+        if parsed.password is not None:
+            userinfo += ':***'
+        userinfo += '@'
+
+    masked_netloc = f"{userinfo}{hostname}{port}"
+
+    return urlunparse((
+        parsed.scheme,
+        masked_netloc,
+        parsed.path or '',
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+
 
 # Configuration
 SECRET_KEY = _get_config_value('SECRET_KEY', 'your-secret-key-change-this-in-production')
@@ -127,6 +171,38 @@ DEVICE_CACHE_TTL = int(_get_config_value('DEVICE_CACHE_TTL', '300') or '300')  #
 VERBOSE_LOGGING = (_get_config_value('VERBOSE_LOGGING', 'false') or 'false').lower() == 'true'  # Enable verbose device usage logging
 GAS_RTSP_URL = _get_config_value('GAS_RTSP_URL', '') or ''
 WATER_RTSP_URL = _get_config_value('WATER_RTSP_URL', '') or ''
+
+
+def log_configuration_snapshot() -> None:
+    print("[Config] Loaded configuration values:")
+    config_snapshot = {
+        'SECRET_KEY': _mask_secret(SECRET_KEY),
+        'ELECTRICITY_RATE': ELECTRICITY_RATE,
+        'SYSTEM_NAME': SYSTEM_NAME,
+        'DEVICE_CACHE_TTL': DEVICE_CACHE_TTL,
+        'VERBOSE_LOGGING': VERBOSE_LOGGING,
+        'GAS_RTSP_URL': _mask_url_credentials(GAS_RTSP_URL),
+        'WATER_RTSP_URL': _mask_url_credentials(WATER_RTSP_URL)
+    }
+
+    for key in ('BACKEND_HOST', 'BACKEND_PORT', 'BACKEND_DEBUG'):
+        config_snapshot[key] = _get_config_value(key, None)
+
+    # Normalize backend settings for display
+    config_snapshot['BACKEND_HOST'] = config_snapshot.get('BACKEND_HOST') or '0.0.0.0'
+    config_snapshot['BACKEND_PORT'] = config_snapshot.get('BACKEND_PORT') or '5001'
+    backend_debug = config_snapshot.get('BACKEND_DEBUG')
+    if isinstance(backend_debug, str):
+        backend_debug = backend_debug.lower() == 'true'
+    config_snapshot['BACKEND_DEBUG'] = backend_debug if backend_debug is not None else True
+
+    for key, value in config_snapshot.items():
+        if key.endswith('_URL'):
+            value = _mask_url_credentials(value)  # ensure masked even if override came from env
+        print(f"[Config]   {key}: {value}")
+
+
+log_configuration_snapshot()
 
 
 def restream_available() -> bool:
