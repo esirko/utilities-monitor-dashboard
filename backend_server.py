@@ -108,6 +108,30 @@ ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.l
 ENV_LOCAL_VALUES = _load_env_local(ENV_FILE_PATH)
 
 
+def _load_creds_file(path: str) -> tuple[str | None, str | None]:
+    if not os.path.exists(path):
+        return None, None
+
+    try:
+        with open(path, 'r', encoding='utf-8') as creds_file:
+            creds_data = json.load(creds_file)
+            username = creds_data.get('username')
+            password = creds_data.get('password')
+            return username, password
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+CREDS_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.creds.json')
+CREDS_USERNAME, CREDS_PASSWORD = _load_creds_file(CREDS_FILE_PATH)
+
+if CREDS_USERNAME and 'EMPORIA_USERNAME' not in ENV_LOCAL_VALUES:
+    ENV_LOCAL_VALUES['EMPORIA_USERNAME'] = CREDS_USERNAME
+
+if CREDS_PASSWORD and 'EMPORIA_PASSWORD' not in ENV_LOCAL_VALUES:
+    ENV_LOCAL_VALUES['EMPORIA_PASSWORD'] = CREDS_PASSWORD
+
+
 def _get_config_value(key: str, default: str | None = None) -> str | None:
     """Fetch a configuration value using env vars to override .env.local values."""
     if key in os.environ:
@@ -182,7 +206,9 @@ def log_configuration_snapshot() -> None:
         'DEVICE_CACHE_TTL': DEVICE_CACHE_TTL,
         'VERBOSE_LOGGING': VERBOSE_LOGGING,
         'GAS_RTSP_URL': _mask_url_credentials(GAS_RTSP_URL),
-        'WATER_RTSP_URL': _mask_url_credentials(WATER_RTSP_URL)
+        'WATER_RTSP_URL': _mask_url_credentials(WATER_RTSP_URL),
+        'EMPORIA_USERNAME': CREDS_USERNAME or '',
+        'EMPORIA_PASSWORD': _mask_secret(CREDS_PASSWORD)
     }
 
     for key in ('BACKEND_HOST', 'BACKEND_PORT', 'BACKEND_DEBUG'):
