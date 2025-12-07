@@ -44,11 +44,12 @@ python3 backend_server.py
 
 ### Debugging just the python backend
 
-If you want to run the python backend and don't care about the frontend, you can use these curl commands in a client terminal.
+If you want to run the python backend and don't care about the frontend, you can use these curl commands in a client terminal. Make sure the `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` environment variables are set (for example by loading your `.env` file) so we can post them to the login endpoint.
 
 ```bash
 PORT=5001
-login_result=$(curl -X POST -H "Content-Type: application/json" -d @.creds.json http://localhost:$PORT/api/auth/login)
+login_payload=$(jq -n --arg user "$EMPORIA_USERNAME" --arg pass "$EMPORIA_PASSWORD" '{username:$user,password:$pass}')
+login_result=$(curl -X POST -H "Content-Type: application/json" -d "$login_payload" http://localhost:$PORT/api/auth/login)
 if [ $(echo $login_result | jq '.success') = "true" ]; then
   token=$(echo $login_result | jq -r '.token')
 else

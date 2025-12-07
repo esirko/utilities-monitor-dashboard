@@ -221,7 +221,7 @@ Use the login form in the app to authenticate, then the dashboard will automatic
 
 The backend server implements device caching to reduce API calls to the Emporia service:
 
-- **Initial Fetch**: Devices are fetched from the Emporia API once during login or server startup (if using `.creds.json`)
+- **Initial Fetch**: Devices are fetched from the Emporia API once during login. Cache refreshes occur when explicitly requested.
 - **Cached Usage**: All subsequent requests to `/api/devices`, `/api/energy/realtime`, and `/api/energy/history` use the cached device list
 - **Manual Refresh**: If you add/remove devices in your Emporia account, you can refresh the cache by calling:
   ```

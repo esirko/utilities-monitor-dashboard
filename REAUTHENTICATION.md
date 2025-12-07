@@ -22,7 +22,7 @@ The system detects authentication failures in two places:
 1. **401 Error Detected**: When a request fails with status 401
 2. **Automatic Retry**: The frontend calls the `/api/auth/reauthenticate` endpoint
 3. **Backend Re-authentication**: The backend server:
-   - Loads credentials from `.creds.json`
+    - Loads credentials from configured environment variables (`EMPORIA_USERNAME` and `EMPORIA_PASSWORD`)
    - Calls `vue.login()` with stored credentials
    - Invalidates device cache to fetch fresh data
    - Returns a new JWT token if successful
@@ -42,23 +42,21 @@ To prevent spamming the Emporia API, the system implements several protections:
 
 ### Prerequisites
 
-For automatic re-authentication to work, the backend server **must** have credentials stored in `.creds.json`:
+For automatic re-authentication to work, the backend server **must** have credentials available via environment variables (for example, defined in `.env`):
 
-```json
-{
-    "username": "your-emporia-username@example.com",
-    "password": "your-emporia-password"
-}
+```env
+EMPORIA_USERNAME=your-emporia-username@example.com
+EMPORIA_PASSWORD=your-emporia-password
 ```
 
-Without this file, the server cannot automatically re-authenticate, and users will need to manually log in again.
+If either value is missing, the server cannot automatically re-authenticate and users will need to log in again through the UI.
 
 ### Backend Environment Variables
 
-No additional environment variables are required. The re-authentication feature uses existing configuration:
+No additional environment variables are required beyond the credentials and standard configuration:
 
 - `SECRET_KEY`: JWT token generation
-- Credentials file: `.creds.json` (same file used for auto-authentication on startup)
+- `EMPORIA_USERNAME` / `EMPORIA_PASSWORD`: Stored credentials for re-authentication
 
 ## User Experience
 
@@ -105,7 +103,7 @@ The system logs all re-authentication activity to the browser console and backen
 
 Common error scenarios logged:
 
-- `No stored credentials available`: `.creds.json` file missing or invalid
+- `No stored credentials available`: Required environment variables missing or invalid
 - `Re-authentication already in progress`: Concurrent requests triggered re-auth simultaneously
 - `Re-authentication rate limited`: Too many attempts in short time period
 - `Emporia API authentication failure`: Credentials invalid or API unavailable
@@ -179,10 +177,9 @@ The backend maintains authentication state globally:
 **Problem**: System doesn't automatically reconnect
 
 **Solutions**:
-1. Verify `.creds.json` exists in the backend directory
-2. Check credentials are valid (test with manual login)
-3. Check backend server logs for authentication errors
-4. Ensure backend server has network access to Emporia API
+1. Verify `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` are set (for example, in `.env`)
+2. Ensure the backend was started after loading these environment variables
+3. Restart the backend server after updating credentials
 
 ### Too Many Failed Attempts
 

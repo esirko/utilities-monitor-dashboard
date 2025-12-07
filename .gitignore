@@ -24,7 +24,6 @@ dist-ssr
 *.sln
 *.sw?
 
-.creds.json
 venv/
 .env
 **/agent-eval-report*

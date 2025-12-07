@@ -17,15 +17,6 @@ Configuration (Environment Variables):
     VERBOSE_LOGGING   - Enable verbose device usage logging (default: false)
 
 Credentials:
-    You can store your Emporia credentials in a .creds.json file:
-    {
-        "username": "your-emporia-username@example.com",
-        "password": "your-emporia-password"
-    }
-    
-    Copy .creds.json.example to .creds.json and update with your credentials.
-    The server will auto-authenticate on startup if .creds.json is present.
-
 Usage:
     python backend_server.py
     
@@ -108,30 +99,6 @@ ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 ENV_FILE_VALUES = _load_env_file(ENV_FILE_PATH)
 
 
-def _load_creds_file(path: str) -> tuple[str | None, str | None]:
-    if not os.path.exists(path):
-        return None, None
-
-    try:
-        with open(path, 'r', encoding='utf-8') as creds_file:
-            creds_data = json.load(creds_file)
-            username = creds_data.get('username')
-            password = creds_data.get('password')
-            return username, password
-    except (OSError, json.JSONDecodeError):
-        return None, None
-
-
-CREDS_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.creds.json')
-CREDS_USERNAME, CREDS_PASSWORD = _load_creds_file(CREDS_FILE_PATH)
-
-if CREDS_USERNAME and 'EMPORIA_USERNAME' not in ENV_FILE_VALUES:
-    ENV_FILE_VALUES['EMPORIA_USERNAME'] = CREDS_USERNAME
-
-if CREDS_PASSWORD and 'EMPORIA_PASSWORD' not in ENV_FILE_VALUES:
-    ENV_FILE_VALUES['EMPORIA_PASSWORD'] = CREDS_PASSWORD
-
-
 def _get_config_value(key: str, default: str | None = None) -> str | None:
     """Fetch a configuration value using env vars to override .env file values."""
     if key in os.environ:
@@ -187,6 +154,18 @@ def _mask_url_credentials(url: str | None) -> str | None:
     ))
 
 
+def _get_configured_credentials() -> tuple[str | None, str | None]:
+    username = _get_config_value('EMPORIA_USERNAME')
+    password = _get_config_value('EMPORIA_PASSWORD')
+
+    username = username.strip() if isinstance(username, str) else None
+    password = password.strip() if isinstance(password, str) else None
+
+    if username and password:
+        return username, password
+    return None, None
+
+
 # Configuration
 SECRET_KEY = _get_config_value('SECRET_KEY', 'your-secret-key-change-this-in-production')
 ELECTRICITY_RATE = float(_get_config_value('ELECTRICITY_RATE', '0.314555') or '0.314555')
@@ -199,6 +178,7 @@ WATER_RTSP_URL = _get_config_value('WATER_RTSP_URL', '') or ''
 
 def log_configuration_snapshot() -> None:
     print("[Config] Loaded configuration values:")
+    stored_username, stored_password = _get_configured_credentials()
     config_snapshot = {
         'SECRET_KEY': _mask_secret(SECRET_KEY),
         'ELECTRICITY_RATE': ELECTRICITY_RATE,
@@ -207,8 +187,8 @@ def log_configuration_snapshot() -> None:
         'VERBOSE_LOGGING': VERBOSE_LOGGING,
         'GAS_RTSP_URL': _mask_url_credentials(GAS_RTSP_URL),
         'WATER_RTSP_URL': _mask_url_credentials(WATER_RTSP_URL),
-        'EMPORIA_USERNAME': CREDS_USERNAME or '',
-        'EMPORIA_PASSWORD': _mask_secret(CREDS_PASSWORD)
+        'EMPORIA_USERNAME': stored_username or '',
+        'EMPORIA_PASSWORD': _mask_secret(stored_password)
     }
 
     for key in ('BACKEND_HOST', 'BACKEND_PORT', 'BACKEND_DEBUG'):
@@ -430,56 +410,6 @@ def log_emporia_response_full_json(method_name, response):
     except Exception as e:
         print(f"[Emporia API] RESPONSE < {method_name}: <unable to serialize: {str(e)}>")
 
-# Load credentials from .creds.json if it exists
-def load_credentials():
-    """Load credentials from .creds.json file if it exists"""
-    creds_file = '.creds.json'
-    if os.path.exists(creds_file):
-        try:
-            with open(creds_file, 'r') as f:
-                creds = json.load(f)
-                username = creds.get('username')
-                password = creds.get('password')
-                
-                if username and password:
-                    print(f"[Credentials] Found .creds.json file")
-                    return username, password
-                else:
-                    print(f"[Credentials] .creds.json file exists but missing username or password")
-        except json.JSONDecodeError as e:
-            print(f"[Credentials] Error parsing .creds.json: {e}")
-        except Exception as e:
-            print(f"[Credentials] Error reading .creds.json: {e}")
-    return None, None
-
-# Auto-authenticate on startup if credentials are available
-def auto_authenticate():
-    """Automatically authenticate with Emporia Vue if credentials are in .creds.json"""
-    global authenticated, credentials_username
-    
-    username, password = load_credentials()
-    if username and password:
-        try:
-            print(f"[Credentials] Attempting auto-authentication for {username}...")
-            log_emporia_request('vue.login', username=username, password=password)
-            response = vue.login(username=username, password=password)
-            log_emporia_response_full_json('vue.login', response)
-            
-            # Only set authenticated if login returned True
-            if response:
-                authenticated = True
-                credentials_username = username
-                print(f"[Credentials] ✓ Auto-authentication successful for {username}")
-            else:
-                authenticated = False
-                credentials_username = None
-                print(f"[Credentials] ✗ Auto-authentication failed: Invalid credentials")
-        except Exception as e:
-            authenticated = False
-            credentials_username = None
-            print(f"[Credentials] ✗ Auto-authentication failed: {str(e)}")
-    else:
-        print(f"[Credentials] No .creds.json file found - manual login required")
 
 # Authentication decorator
 def token_required(f):
@@ -557,12 +487,12 @@ def login():
 
 @app.route('/api/auth/reauthenticate', methods=['POST'])
 def reauthenticate():
-    """Re-authenticate using stored credentials from .creds.json"""
+    """Re-authenticate using stored credentials from configuration"""
     global authenticated, credentials_username
     
     print("[Re-Auth] Re-authentication requested")
     
-    username, password = load_credentials()
+    username, password = _get_configured_credentials()
     
     if not username or not password:
         print("[Re-Auth] ✗ No stored credentials available")
@@ -617,12 +547,12 @@ def reauthenticate():
 
 @app.route('/api/auth/connect-stored', methods=['POST'])
 def connect_with_stored():
-    """Connect using stored credentials from .creds.json (for login screen)"""
+    """Connect using stored credentials from configuration (for login screen)"""
     global authenticated, credentials_username
     
     print("[Connect-Stored] Connection with stored credentials requested")
     
-    username, password = load_credentials()
+    username, password = _get_configured_credentials()
     
     if not username or not password:
         print("[Connect-Stored] ✗ No stored credentials available")
@@ -663,7 +593,7 @@ def connect_with_stored():
             print("[Connect-Stored] ✗ Connection failed: Invalid credentials")
             return jsonify({
                 'success': False,
-                'message': 'Connection failed: Invalid credentials in .creds.json'
+                'message': 'Connection failed: Invalid stored credentials'
             }), 401
         
     except Exception as e:
@@ -960,7 +890,7 @@ def root():
             'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
         }, SECRET_KEY, algorithm='HS256')
     
-    username, password = load_credentials()
+    username, password = _get_configured_credentials()
     has_stored_credentials = bool(username and password)
     
     return jsonify({

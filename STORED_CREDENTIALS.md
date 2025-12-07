@@ -1,12 +1,12 @@
 # Stored Credentials Feature
 
 ## Overview
-The application now properly supports detecting and using stored credentials from the backend's `.creds.json` file on the login screen.
+The application supports detecting and using stored credentials defined via environment variables (e.g., in `.env`) on the login screen.
 
 ## Backend Changes
 
 ### 1. Root Endpoint Enhancement
-The root endpoint (`GET /`) now returns a `hasStoredCredentials` field that indicates whether the backend has valid credentials stored in `.creds.json`:
+The root endpoint (`GET /`) now returns a `hasStoredCredentials` field that indicates whether the backend has valid credentials configured via environment variables:
 
 ```json
 {
@@ -24,7 +24,7 @@ The root endpoint (`GET /`) now returns a `hasStoredCredentials` field that indi
 Added `POST /api/auth/connect-stored` endpoint that allows the frontend to authenticate using stored credentials from the login screen:
 
 - **Endpoint**: `POST /api/auth/connect-stored`
-- **Purpose**: Connect using credentials stored in `.creds.json`
+- **Purpose**: Connect using credentials stored in environment variables
 - **Response**: Returns a JWT token on successful authentication
 - **Use Case**: Displayed as a button on the login screen when `hasStoredCredentials` is `true`
 
@@ -83,9 +83,8 @@ When no stored credentials:
 ## Implementation Details
 
 ### Backend Functions
-- `load_credentials()`: Loads credentials from `.creds.json`
-- `auto_authenticate()`: Auto-authenticates on server startup (existing)
-- `connect_with_stored()`: New endpoint handler for login screen connection
+- `_get_configured_credentials()`: Helper to read credentials from environment variables
+- `connect_with_stored()`: Endpoint handler for login screen connection
 
 ### Frontend Components
 - `LoginForm.tsx`: Handles UI and user interaction
@@ -94,20 +93,14 @@ When no stored credentials:
 ## Security Notes
 - Credentials are never exposed to the frontend
 - JWT tokens are used for all authenticated requests
-- The `.creds.json` file should be in `.gitignore` (already configured)
+- Store `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` securely (e.g., in `.env`, a secrets manager, or host environment variables)
 - All authentication happens server-side with the Emporia API
 
 ## Testing
 
 To test this feature:
 
-1. Create a `.creds.json` file in the backend directory:
-   ```json
-   {
-     "username": "your-emporia-email@example.com",
-     "password": "your-emporia-password"
-   }
-   ```
+1. Ensure `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` are set (for example, via `.env`).
 
 2. Start the backend server:
    ```bash

@@ -8,13 +8,13 @@ Even though [open source repositories are outside of the scope of our bug bounty
 
 ## Credential Security
 
-This project stores Emporia Vue credentials in a `.creds.json` file for convenience during development. **Important security notes:**
+This project stores Emporia Vue credentials via environment variables (for example, in `.env`) for convenience during development. **Important security notes:**
 
-- **Never commit `.creds.json` to Git** - It's already in `.gitignore` by default
+- **Never commit secrets to Git** – keep `.env` out of source control
 - **Use strong, unique passwords** for your Emporia Vue account
-- **Keep `.creds.json` file permissions restrictive** (e.g., `chmod 600 .creds.json` on Unix systems)
-- **Delete `.creds.json`** if you no longer need it or are sharing the project directory
-- **For production deployments**, use environment variables or secure credential management systems instead of `.creds.json`
+- **Restrict environment file permissions** (e.g., `chmod 600 .env` on Unix systems)
+- **Rotate or remove credentials** if the `.env` file is shared or compromised
+- **For production deployments**, prefer managed secret stores over plain environment files
 
 ## Reporting Security Issues
 

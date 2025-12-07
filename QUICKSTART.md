@@ -32,81 +32,36 @@ pip install -r requirements.txt
 
 ## Step 2: Configure Environment
 
-### Option A: Using .creds.json (Recommended for Simplicity)
-
-Store your Emporia Vue credentials in a `.creds.json` file:
+Create an `.env` file to hold both frontend and backend settings:
 
 ```bash
-cp .creds.json.example .creds.json
+cp .env.example .env
 ```
 
-Edit `.creds.json` with your credentials:
-```json
-{
-  "username": "your-emporia-username@example.com",
-  "password": "your-emporia-password"
-}
-```
+Update the values as needed. At minimum, ensure these are set:
 
-The backend will automatically authenticate on startup if this file exists.
-
-> **Note:** `.creds.json` is already in `.gitignore` - your credentials will not be committed to Git.
-
-### Option B: Using .env.local
-
-Create `.env.local` file:
-```bash
-cp .env.example .env.local
-```
-
-#### Frontend Configuration
-The default configuration works for local development:
 ```env
 VITE_API_URL=http://localhost:5000
-```
-
-#### Backend Configuration
-You can customize the backend server by editing `.env.local`:
-```env
 BACKEND_HOST=0.0.0.0
 BACKEND_PORT=5000
 BACKEND_DEBUG=true
 SECRET_KEY=your-secret-key-change-this-in-production
+EMPORIA_USERNAME=your-emporia-username@example.com
+EMPORIA_PASSWORD=your-emporia-password
 ```
 
-If you change `BACKEND_PORT`, make sure to update `VITE_API_URL` to match.
+If you change `BACKEND_PORT`, remember to update `VITE_API_URL` to match.
 
 ## Step 3: Start Backend Server
 
-### If Using .creds.json
-
-Simply start the backend server - it will auto-authenticate:
-```bash
-python backend_server.py
-```
-
-You should see:
-```
-============================================================
-Energy Monitor Backend Server
-============================================================
-Server starting on http://0.0.0.0:5000
-...
-[Credentials] Found .creds.json file
-[Credentials] Attempting auto-authentication for your-email@example.com...
-[Credentials] ✓ Auto-authentication successful for your-email@example.com
-```
-
-### If Using .env.local (Environment Variables)
-
-The backend server needs to load environment variables from `.env.local` before starting. Choose the option that works for your system:
+Load the environment variables from `.env` before starting the backend server. Choose the option that works for your system:
 
 #### Option A: Using export (macOS/Linux)
 
 In terminal 1:
 ```bash
-# Load environment variables from .env.local
-export $(grep -v '^#' .env.local | xargs)
+# Load environment variables from .env
+export $(grep -v '^#' .env | xargs)
 
 # Start the backend server
 python backend_server.py
@@ -116,8 +71,8 @@ python backend_server.py
 
 In terminal 1:
 ```cmd
-# Load environment variables from .env.local (one at a time)
-for /f "tokens=*" %i in ('type .env.local ^| findstr /v "^#"') do set %i
+# Load environment variables from .env (one at a time)
+for /f "tokens=*" %i in ('type .env ^| findstr /v "^#"') do set %i
 
 # Start the backend server
 python backend_server.py
@@ -127,8 +82,8 @@ python backend_server.py
 
 In terminal 1:
 ```powershell
-# Load environment variables from .env.local
-Get-Content .env.local | Where-Object {$_ -notmatch '^#'} | ForEach-Object {
+# Load environment variables from .env
+Get-Content .env | Where-Object {$_ -notmatch '^#'} | ForEach-Object {
     if ($_ -match '(.+?)=(.+)') {
         [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
     }
@@ -152,15 +107,6 @@ $env:BACKEND_PORT="5000"; $env:SECRET_KEY="your-secret"; python backend_server.p
 set BACKEND_PORT=5000 && set SECRET_KEY=your-secret && python backend_server.py
 ```
 
-### Without .creds.json
-
-If no `.creds.json` file is found, you'll see:
-```
-[Credentials] No .creds.json file found - manual login required
-```
-
-You'll need to login through the web interface.
-
 ## Step 4: Start Frontend
 
 In terminal 2:
@@ -181,11 +127,8 @@ Navigate to: **http://localhost:5173**
 
 ## Step 6: Login
 
-### If Using .creds.json
-The backend auto-authenticates on startup, and the frontend will automatically detect this and bypass the login screen! You should be taken directly to the dashboard.
-
-### If Manual Login Required
-If no `.creds.json` file is present, you'll see the login screen. Enter your Emporia Vue credentials:
+### Login
+Enter your Emporia Vue credentials:
 - **Username**: Your Emporia Vue account email
 - **Password**: Your Emporia Vue account password
 
@@ -210,7 +153,7 @@ Don't have Emporia Vue? Use **Demo Mode**:
 
 ### "Failed to connect to server"
 - Make sure backend is running on port 5000
-- Check `VITE_API_URL` in `.env.local`
+- Check `VITE_API_URL` in `.env`
 - Verify environment variables were loaded (see Step 3)
 
 ### "Login failed"
@@ -224,7 +167,7 @@ Don't have Emporia Vue? Use **Demo Mode**:
 
 ### Backend still using port 5000 when changed
 - Make sure you loaded environment variables before starting the server
-- Restart the backend server after changing `.env.local`
+- Restart the backend server after changing `.env`
 - Try Option D (inline variables) to explicitly set the port
 
 ## Next Steps
