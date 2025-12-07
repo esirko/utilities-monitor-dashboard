@@ -61,14 +61,72 @@ except ImportError:  # pragma: no cover
 app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
+
+def _load_env_local(path: str) -> dict[str, str]:
+    """Parse a .env style file into a dictionary."""
+    values: dict[str, str] = {}
+
+    if not os.path.exists(path):
+        return values
+
+    try:
+        with open(path, 'r', encoding='utf-8') as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+
+                if not line or line.startswith('#'):
+                    continue
+
+                if line.startswith('export '):
+                    line = line[len('export '):]
+
+                if '=' not in line:
+                    continue
+
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+
+                if not key:
+                    continue
+
+                # Remove surrounding quotes if present
+                if ((value.startswith('"') and value.endswith('"')) or
+                        (value.startswith("'") and value.endswith("'"))) and len(value) >= 2:
+                    value = value[1:-1]
+
+                values[key] = value
+    except OSError:
+        # If the file can't be read, fall back to empty dict
+        return {}
+
+    return values
+
+
+ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.local')
+ENV_LOCAL_VALUES = _load_env_local(ENV_FILE_PATH)
+
+
+def _get_config_value(key: str, default: str | None = None) -> str | None:
+    """Fetch configuration preferring environment overrides, then .env.local, then default."""
+    env_value = os.environ.get(key)
+    if env_value is not None:
+        return env_value
+
+    file_value = ENV_LOCAL_VALUES.get(key)
+    if file_value is not None:
+        return file_value
+
+    return default
+
 # Configuration
-SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-in-production')
-ELECTRICITY_RATE = float(os.environ.get('ELECTRICITY_RATE', '0.314555'))
-SYSTEM_NAME = os.environ.get('SYSTEM_NAME', 'Home')
-DEVICE_CACHE_TTL = int(os.environ.get('DEVICE_CACHE_TTL', '300'))  # Cache TTL in seconds (default: 5 minutes)
-VERBOSE_LOGGING = os.environ.get('VERBOSE_LOGGING', 'false').lower() == 'true'  # Enable verbose device usage logging
-GAS_RTSP_URL = os.environ.get('GAS_RTSP_URL', '')
-WATER_RTSP_URL = os.environ.get('WATER_RTSP_URL', '')
+SECRET_KEY = _get_config_value('SECRET_KEY', 'your-secret-key-change-this-in-production')
+ELECTRICITY_RATE = float(_get_config_value('ELECTRICITY_RATE', '0.314555') or '0.314555')
+SYSTEM_NAME = _get_config_value('SYSTEM_NAME', 'Home')
+DEVICE_CACHE_TTL = int(_get_config_value('DEVICE_CACHE_TTL', '300') or '300')  # Cache TTL in seconds (default: 5 minutes)
+VERBOSE_LOGGING = (_get_config_value('VERBOSE_LOGGING', 'false') or 'false').lower() == 'true'  # Enable verbose device usage logging
+GAS_RTSP_URL = _get_config_value('GAS_RTSP_URL', '') or ''
+WATER_RTSP_URL = _get_config_value('WATER_RTSP_URL', '') or ''
 
 
 def restream_available() -> bool:
@@ -825,9 +883,9 @@ def health():
 
 if __name__ == '__main__':
     # Read host and port from environment variables
-    host = os.environ.get('BACKEND_HOST', '0.0.0.0')
-    port = int(os.environ.get('BACKEND_PORT', '5001'))
-    debug = os.environ.get('BACKEND_DEBUG', 'true').lower() == 'true'
+    host = _get_config_value('BACKEND_HOST', '0.0.0.0') or '0.0.0.0'
+    port = int(_get_config_value('BACKEND_PORT', '5001') or '5001')
+    debug = (_get_config_value('BACKEND_DEBUG', 'true') or 'true').lower() == 'true'
     
     print("=" * 60)
     print("Energy Monitor Backend Server")
