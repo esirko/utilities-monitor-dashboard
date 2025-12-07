@@ -63,7 +63,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for React frontend
 
 
-def _load_env_local(path: str) -> dict[str, str]:
+def _load_env_file(path: str) -> dict[str, str]:
     """Parse a .env style file into a dictionary."""
     values: dict[str, str] = {}
 
@@ -104,8 +104,8 @@ def _load_env_local(path: str) -> dict[str, str]:
     return values
 
 
-ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env.local')
-ENV_LOCAL_VALUES = _load_env_local(ENV_FILE_PATH)
+ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+ENV_FILE_VALUES = _load_env_file(ENV_FILE_PATH)
 
 
 def _load_creds_file(path: str) -> tuple[str | None, str | None]:
@@ -125,18 +125,18 @@ def _load_creds_file(path: str) -> tuple[str | None, str | None]:
 CREDS_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.creds.json')
 CREDS_USERNAME, CREDS_PASSWORD = _load_creds_file(CREDS_FILE_PATH)
 
-if CREDS_USERNAME and 'EMPORIA_USERNAME' not in ENV_LOCAL_VALUES:
-    ENV_LOCAL_VALUES['EMPORIA_USERNAME'] = CREDS_USERNAME
+if CREDS_USERNAME and 'EMPORIA_USERNAME' not in ENV_FILE_VALUES:
+    ENV_FILE_VALUES['EMPORIA_USERNAME'] = CREDS_USERNAME
 
-if CREDS_PASSWORD and 'EMPORIA_PASSWORD' not in ENV_LOCAL_VALUES:
-    ENV_LOCAL_VALUES['EMPORIA_PASSWORD'] = CREDS_PASSWORD
+if CREDS_PASSWORD and 'EMPORIA_PASSWORD' not in ENV_FILE_VALUES:
+    ENV_FILE_VALUES['EMPORIA_PASSWORD'] = CREDS_PASSWORD
 
 
 def _get_config_value(key: str, default: str | None = None) -> str | None:
-    """Fetch a configuration value using env vars to override .env.local values."""
+    """Fetch a configuration value using env vars to override .env file values."""
     if key in os.environ:
         return os.environ.get(key)
-    value = ENV_LOCAL_VALUES.get(key)
+    value = ENV_FILE_VALUES.get(key)
     if value is not None:
         return value
     return default
