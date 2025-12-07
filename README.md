@@ -47,13 +47,13 @@ pip install flask flask-cors pyemvue pyjwt
 
 ### 3. Configure Environment Variables
 
-Create a `.env.local` file in the project root:
+Create a `.env` file in the project root:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
-Edit `.env.local`:
+Edit `.env`:
 ```env
 VITE_API_URL=http://localhost:5000
 ```
@@ -153,7 +153,7 @@ The Python backend exposes these endpoints:
 
 ### No data showing
 - Check browser console for errors (F12)
-- Verify `VITE_API_URL` in `.env.local` matches backend address
+- Verify `VITE_API_URL` in `.env` matches backend address
 - Switch to Demo Mode to verify frontend is working
 - Check backend logs for API errors
 

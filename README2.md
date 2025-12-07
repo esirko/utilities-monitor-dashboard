@@ -6,7 +6,7 @@
 
 The codespace isn't able to access the IP cams on the home network out of the box. There are [instructions to fix this](https://docs.github.com/en/codespaces/developing-in-a-codespace/connecting-to-a-private-network), but I couldn't get `gh net` to work, probably because it's out of support. I haven't tried the VPN yet.
 
-Copy the `.env.example` file to `.env.local` and change both 5000 ports to 5001.
+Copy the `.env.example` file to `.env` and change both 5000 ports to 5001.
 This is because I have conflicts with port 5000 on my mac.
 
 Here's my `.vscode/launch.json`
@@ -23,7 +23,7 @@ Here's my `.vscode/launch.json`
             "request": "launch",
             "program": "${file}",
             "python": "${workspaceFolder}/venv/bin/python",
-            "envFile": "${workspaceFolder}/.env.local"
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
