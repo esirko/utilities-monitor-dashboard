@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -16,6 +16,11 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false)
   const [storedUsername, setStoredUsername] = useState<string | null>(null)
   const [isCheckingCredentials, setIsCheckingCredentials] = useState(true)
+  const onLoginSuccessRef = useRef(onLoginSuccess)
+
+  useEffect(() => {
+    onLoginSuccessRef.current = onLoginSuccess
+  }, [onLoginSuccess])
 
   useEffect(() => {
     let isMounted = true
@@ -31,7 +36,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
         setStoredUsername(authStatus.username)
 
         if (authStatus.authenticated) {
-          onLoginSuccess()
+          onLoginSuccessRef.current()
         }
       } catch (err) {
         console.error('Failed to check for stored credentials:', err)
@@ -51,7 +56,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
     return () => {
       isMounted = false
     }
-  }, [onLoginSuccess])
+  }, [])
 
   const handleConnectWithStored = async () => {
     setError('')
