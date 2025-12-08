@@ -15,6 +15,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false)
   const [storedUsername, setStoredUsername] = useState<string | null>(null)
+  const [detectedSystemName, setDetectedSystemName] = useState<string | null>(null)
   const [isCheckingCredentials, setIsCheckingCredentials] = useState(true)
   const onLoginSuccessRef = useRef(onLoginSuccess)
 
@@ -34,6 +35,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
         }
         setHasStoredCredentials(authStatus.hasStoredCredentials ?? false)
         setStoredUsername(authStatus.username)
+        setDetectedSystemName(authStatus.systemName ?? null)
 
         if (authStatus.authenticated) {
           onLoginSuccessRef.current()
@@ -109,8 +111,13 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
               <div className="space-y-4 mb-6">
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
                   <Database className="w-5 h-5 text-primary" weight="fill" />
-                  <div className="text-sm text-muted-foreground">
-                    Stored credentials{storedUsername ? ` for ${storedUsername}` : ''} detected.
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div>Stored credentials{storedUsername ? ` for ${storedUsername}` : ''} detected.</div>
+                    {detectedSystemName && (
+                      <div className="text-xs text-muted-foreground/80">
+                        System: {detectedSystemName}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -164,7 +171,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
 
             <div className="mt-6 text-center text-xs text-muted-foreground">
               <p>Demo mode lets you explore with simulated data.</p>
-              <p className="mt-2">Update stored credentials and restart the backend to see your real Emporia Vue energy data.</p>
+              <p className="mt-2">Update stored credentials in <code className="font-mono text-xs">.env</code> and restart the backend to see your real Emporia Vue energy data.</p>
             </div>
           </>
         )}

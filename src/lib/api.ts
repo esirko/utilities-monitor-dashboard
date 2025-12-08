@@ -226,18 +226,19 @@ export const api = {
     }
   },
 
-  async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string; hasStoredCredentials?: boolean }> {
+  async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string; hasStoredCredentials?: boolean; systemName?: string }> {
     try {
       const data = await fetchRootSummary()
       return {
         authenticated: data.authenticated || false,
         username: data.username || null,
         token: data.token || undefined,
-        hasStoredCredentials: data.hasStoredCredentials ?? data?.authentication?.hasStoredCredentials ?? false
+        hasStoredCredentials: data.hasStoredCredentials ?? data?.authentication?.hasStoredCredentials ?? false,
+        systemName: data.config?.systemName ?? data.systemName
       }
     } catch (error) {
       console.error('Failed to check backend authentication status:', error)
-      return { authenticated: false, username: null, hasStoredCredentials: false }
+      return { authenticated: false, username: null, hasStoredCredentials: false, systemName: undefined }
     }
   },
 

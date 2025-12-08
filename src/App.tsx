@@ -62,7 +62,7 @@ function App() {
   const { dataPoints: realDataPoints, error: realDataError, isLoading: isLoadingRealData } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
-  const [systemName, setSystemName] = useState<string>('Home')
+  const [systemName, setSystemName] = useState<string>('Not connected')
   
   const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
@@ -336,10 +336,12 @@ function App() {
               </div>
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Electricity
+                  {systemName || 'Not connected'}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isDemoMode ? 'Demo Mode - Simulated Data' : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
+                  {isDemoMode
+                    ? 'Demo Mode - Simulated Data'
+                    : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
                 </p>
               </div>
             </div>
