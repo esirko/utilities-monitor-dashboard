@@ -44,7 +44,7 @@ python3 backend_server.py
 
 ### Debugging just the python backend
 
-If you want to run the python backend and don't care about the frontend, you can use these curl commands in a client terminal. Make sure the `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` environment variables are set (for example by loading your `.env` file) so we can post them to the login endpoint.
+If you want to run the python backend and don't care about the frontend, you can use these curl commands in a client terminal.
 
 ```bash
 PORT=5001
