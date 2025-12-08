@@ -48,19 +48,17 @@ If you want to run the python backend and don't care about the frontend, you can
 
 ```bash
 PORT=5001
-login_payload=$(jq -n --arg user "$EMPORIA_USERNAME" --arg pass "$EMPORIA_PASSWORD" '{username:$user,password:$pass}')
-login_result=$(curl -X POST -H "Content-Type: application/json" -d "$login_payload" http://localhost:$PORT/api/auth/login)
-if [ $(echo $login_result | jq '.success') = "true" ]; then
-  token=$(echo $login_result | jq -r '.token')
+auth_result=$(curl -X POST -H "Content-Type: application/json" http://localhost:$PORT/api/emporia/auth)
+if [ $(echo $auth_result | jq '.success') = "true" ]; then
+  token=$(echo $auth_result | jq -r '.token')
 else
-  echo "Login not successful" 1>&2
+  echo "Stored credential authentication failed" 1>&2
 fi
 
 curl http://localhost:$PORT/
-curl http://localhost:$PORT/health
-curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/devices
-curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/energy/realtime
-curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/energy/history
+curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/emporia/devices
+curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/emporia/realtime
+curl -H "Authorization: Bearer $token" "http://localhost:$PORT/api/emporia/history?range=1%20Min"
 ```
 
 

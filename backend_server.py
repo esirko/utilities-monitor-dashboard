@@ -24,13 +24,14 @@ Usage:
     BACKEND_PORT=8000 SECRET_KEY=my-secret python backend_server.py
 
 API Endpoints:
-    POST   /api/auth/login          - Authenticate with Emporia Vue
-    POST   /api/auth/reauthenticate - Re-authenticate using stored credentials
-    POST   /api/auth/connect-stored - Connect using stored credentials (for login screen)
-    GET    /api/devices             - Get list of devices
-    POST   /api/devices/refresh     - Force refresh device cache
-    GET    /api/energy/realtime     - Get current energy data
-    GET    /api/energy/history      - Get historical energy data
+    GET    /                        - Server status, configuration, and health summary
+    POST   /api/emporia/auth        - Authenticate with Emporia using stored credentials
+    GET    /api/emporia/devices     - Get list of devices
+    POST   /api/emporia/devices/refresh - Force refresh device cache
+    GET    /api/emporia/realtime    - Get current energy data
+    GET    /api/emporia/history     - Get historical energy data
+    GET    /api/streams             - Get stream metadata for utility cameras
+    GET    /api/streams/<stream_name>/mjpeg - MJPEG proxy for configured streams
 """
 
 from flask import Flask, request, jsonify, Response, abort
@@ -432,137 +433,26 @@ def token_required(f):
     
     return decorated
 
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    """Authenticate with Emporia Vue credentials"""
-    global authenticated, credentials_username
-    
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    
-    if not username or not password:
-        return jsonify({
-            'success': False,
-            'message': 'Username and password are required'
-        }), 400
-    
-    try:
-        # Authenticate with Emporia Vue
-        log_emporia_request('vue.login', username=username, password=password)
-        response = vue.login(username=username, password=password)
-        log_emporia_response_full_json('vue.login', response)
-        
-        # Only set authenticated if login returned True
-        if response:
-            authenticated = True
-            credentials_username = username
-            
-            # Generate JWT token
-            token = jwt.encode({
-                'username': username,
-                'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
-            }, SECRET_KEY, algorithm='HS256')
-            
-            return jsonify({
-                'success': True,
-                'token': token,
-                'message': 'Login successful'
-            })
-        else:
-            authenticated = False
-            credentials_username = None
-            return jsonify({
-                'success': False,
-                'message': 'Authentication failed: Invalid credentials'
-            }), 401
-        
-    except Exception as e:
-        authenticated = False
-        credentials_username = None
-        return jsonify({
-            'success': False,
-            'message': f'Authentication failed: {str(e)}'
-        }), 401
 
-@app.route('/api/auth/reauthenticate', methods=['POST'])
-def reauthenticate():
-    """Re-authenticate using stored credentials from configuration"""
+
+@app.route('/api/emporia/auth', methods=['POST'])
+def authenticate_with_stored():
+    """Authenticate with Emporia using stored credentials (for login screen)"""
     global authenticated, credentials_username
     
-    print("[Re-Auth] Re-authentication requested")
+    print("[Emporia Auth] Authentication with stored credentials requested")
     
     username, password = _get_configured_credentials()
     
     if not username or not password:
-        print("[Re-Auth] ✗ No stored credentials available")
-        return jsonify({
-            'success': False,
-            'message': 'No stored credentials available for re-authentication'
-        }), 401
-    
-    try:
-        print(f"[Re-Auth] Attempting to re-authenticate with Emporia API for {username}...")
-        log_emporia_request('vue.login', username=username, password=password)
-        response = vue.login(username=username, password=password)
-        log_emporia_response_full_json('vue.login', response)
-        
-        if response:
-            authenticated = True
-            credentials_username = username
-            
-            # Invalidate device cache after re-authentication
-            invalidate_device_cache()
-            
-            # Generate new JWT token
-            token = jwt.encode({
-                'username': username,
-                'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
-            }, SECRET_KEY, algorithm='HS256')
-            
-            print(f"[Re-Auth] ✓ Re-authentication successful for {username}")
-            
-            return jsonify({
-                'success': True,
-                'token': token,
-                'message': 'Re-authentication successful'
-            })
-        else:
-            authenticated = False
-            credentials_username = None
-            print("[Re-Auth] ✗ Re-authentication failed: Invalid credentials")
-            return jsonify({
-                'success': False,
-                'message': 'Re-authentication failed: Invalid credentials'
-            }), 401
-        
-    except Exception as e:
-        authenticated = False
-        credentials_username = None
-        print(f"[Re-Auth] ✗ Re-authentication failed: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Re-authentication failed: {str(e)}'
-        }), 401
-
-@app.route('/api/auth/connect-stored', methods=['POST'])
-def connect_with_stored():
-    """Connect using stored credentials from configuration (for login screen)"""
-    global authenticated, credentials_username
-    
-    print("[Connect-Stored] Connection with stored credentials requested")
-    
-    username, password = _get_configured_credentials()
-    
-    if not username or not password:
-        print("[Connect-Stored] ✗ No stored credentials available")
+        print("[Emporia Auth] ✗ No stored credentials available")
         return jsonify({
             'success': False,
             'message': 'No stored credentials available'
         }), 401
     
     try:
-        print(f"[Connect-Stored] Attempting to connect with stored credentials for {username}...")
+        print(f"[Emporia Auth] Attempting to authenticate with stored credentials for {username}...")
         log_emporia_request('vue.login', username=username, password=password)
         response = vue.login(username=username, password=password)
         log_emporia_response_full_json('vue.login', response)
@@ -580,7 +470,7 @@ def connect_with_stored():
                 'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
             }, SECRET_KEY, algorithm='HS256')
             
-            print(f"[Connect-Stored] ✓ Connection successful for {username}")
+            print(f"[Emporia Auth] ✓ Authentication successful for {username}")
             
             return jsonify({
                 'success': True,
@@ -590,7 +480,7 @@ def connect_with_stored():
         else:
             authenticated = False
             credentials_username = None
-            print("[Connect-Stored] ✗ Connection failed: Invalid credentials")
+            print("[Emporia Auth] ✗ Authentication failed: Invalid credentials")
             return jsonify({
                 'success': False,
                 'message': 'Connection failed: Invalid stored credentials'
@@ -599,13 +489,13 @@ def connect_with_stored():
     except Exception as e:
         authenticated = False
         credentials_username = None
-        print(f"[Connect-Stored] ✗ Connection failed: {str(e)}")
+        print(f"[Emporia Auth] ✗ Authentication failed: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Connection failed: {str(e)}'
         }), 401
 
-@app.route('/api/devices', methods=['GET'])
+@app.route('/api/emporia/devices', methods=['GET'])
 @token_required
 def get_devices():
     """Get list of all devices"""
@@ -656,7 +546,7 @@ def get_devices():
         
         return jsonify({'error': f'Failed to get devices: {error_message}'}), 500
 
-@app.route('/api/energy/realtime', methods=['GET'])
+@app.route('/api/emporia/realtime', methods=['GET'])
 @token_required
 def get_realtime():
     """Get real-time energy consumption data"""
@@ -743,7 +633,7 @@ def get_realtime():
         
         return jsonify({'error': f'Failed to get real-time data: {error_message}'}), 500
 
-@app.route('/api/energy/history', methods=['GET'])
+@app.route('/api/emporia/history', methods=['GET'])
 @token_required
 def get_history():
     """Get historical energy data"""
@@ -831,7 +721,7 @@ def get_history():
         # If historical fetch fails, return empty array
         return jsonify({'dataPoints': []})
 
-@app.route('/api/devices/refresh', methods=['POST'])
+@app.route('/api/emporia/devices/refresh', methods=['POST'])
 @token_required
 def refresh_devices():
     """Invalidate device cache and force refresh"""
@@ -849,19 +739,6 @@ def refresh_devices():
         })
     except Exception as e:
         return jsonify({'error': f'Failed to refresh devices: {str(e)}'}), 500
-
-@app.route('/api/config', methods=['GET'])
-@token_required
-def get_config():
-    """Get configuration variables (electricity rate, system name, etc.)"""
-    return jsonify({
-        'electricityRate': ELECTRICITY_RATE,
-        'systemName': SYSTEM_NAME,
-        'gasStreamUrl': GAS_RTSP_URL,
-        'waterStreamUrl': WATER_RTSP_URL,
-        'gasStream': build_stream_info('gas', GAS_RTSP_URL),
-        'waterStream': build_stream_info('water', WATER_RTSP_URL)
-    })
 
 @app.route('/api/streams', methods=['GET'])
 def get_stream_urls():
@@ -882,35 +759,42 @@ def mjpeg_stream(stream_name: str):
 
 @app.route('/', methods=['GET'])
 def root():
-    """Root endpoint - server status"""
+    """Combined server status, configuration, and health details."""
+    stored_username, stored_password = _get_configured_credentials()
+    has_stored_credentials = bool(stored_username and stored_password)
+
+    now = datetime.datetime.now(datetime.UTC)
+
     token = None
     if authenticated and credentials_username:
         token = jwt.encode({
             'username': credentials_username,
-            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+            'exp': now + datetime.timedelta(hours=24)
         }, SECRET_KEY, algorithm='HS256')
-    
-    username, password = _get_configured_credentials()
-    has_stored_credentials = bool(username and password)
-    
+
+    config_payload = {
+        'electricityRate': ELECTRICITY_RATE,
+        'systemName': SYSTEM_NAME,
+        'gasStreamUrl': GAS_RTSP_URL or None,
+        'waterStreamUrl': WATER_RTSP_URL or None,
+        'gasStream': build_stream_info('gas', GAS_RTSP_URL),
+        'waterStream': build_stream_info('water', WATER_RTSP_URL)
+    }
+
     return jsonify({
-        'message': 'Energy Monitor Backend Server is running',
         'status': 'up',
+        'timestamp': now.isoformat(),
+        'restreamAvailable': restream_available(),
         'authenticated': authenticated,
-        'username': credentials_username if authenticated else username,
+        'username': credentials_username if authenticated else stored_username,
         'token': token,
         'hasStoredCredentials': has_stored_credentials,
-        'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
-    })
-
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'authenticated': authenticated,
-        'username': credentials_username if authenticated else None,
-        'timestamp': datetime.datetime.now(datetime.UTC).isoformat()
+        'config': config_payload,
+        'health': {
+            'status': 'healthy',
+            'timestamp': now.isoformat(),
+            'authenticated': authenticated
+        }
     })
 
 if __name__ == '__main__':
@@ -928,16 +812,14 @@ if __name__ == '__main__':
     print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
     print(f"Verbose Logging: {'Enabled' if VERBOSE_LOGGING else 'Disabled'}")
     print("Endpoints:")
-    print("  GET    /                        - Server status")
-    print("  POST   /api/auth/login          - Authenticate with credentials")
-    print("  POST   /api/auth/reauthenticate - Re-authenticate using stored credentials")
-    print("  POST   /api/auth/connect-stored - Connect using stored credentials (for login screen)")
-    print("  GET    /api/devices             - Get device list")
-    print("  POST   /api/devices/refresh     - Force refresh device cache")
-    print("  GET    /api/energy/realtime     - Get real-time energy data")
-    print("  GET    /api/energy/history      - Get historical energy data")
-    print("  GET    /api/config              - Get configuration (electricity rate, system name)")
-    print("  GET    /health                  - Health check")
+    print("  GET    /                        - Status, configuration, and health summary")
+    print("  POST   /api/emporia/auth        - Authenticate using stored credentials")
+    print("  GET    /api/emporia/devices     - Get device list")
+    print("  POST   /api/emporia/devices/refresh - Force refresh device cache")
+    print("  GET    /api/emporia/realtime    - Get real-time energy data")
+    print("  GET    /api/emporia/history     - Get historical energy data")
+    print("  GET    /api/streams             - Get utility stream metadata")
+    print("  GET    /api/streams/<stream>/mjpeg - MJPEG proxy for configured stream")
     print("=" * 60)
     print()
     

@@ -76,12 +76,12 @@ npm run dev
 
 The frontend will start on `http://localhost:5173`
 
-### 6. Login with Your Emporia Vue Credentials
+### 6. Connect with Stored Credentials
 
 1. Open `http://localhost:5173` in your browser
-2. Enter your Emporia Vue username and password
-3. Click "Connect to Emporia Vue"
-4. The dashboard will load with your real energy data!
+2. Ensure `EMPORIA_USERNAME` and `EMPORIA_PASSWORD` are present in `.env` (or host environment) and the backend has been restarted
+3. On the login screen choose **Connect with Stored Credentials**
+4. The dashboard will load with your real energy data! If credentials are missing you'll see guidance for populating `.env` or can explore Demo Mode instead
 
 ## 🎮 Demo Mode
 
@@ -121,11 +121,13 @@ The Python backend exposes these endpoints:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/auth/login` | Authenticate with Emporia Vue |
-| `GET` | `/api/devices` | Get list of devices |
-| `GET` | `/api/energy/realtime` | Get current energy data |
-| `GET` | `/api/energy/history` | Get historical energy data |
-| `GET` | `/health` | Health check |
+| `GET` | `/` | Status, configuration, and health summary |
+| `POST` | `/api/emporia/auth` | Authenticate with stored Emporia credentials |
+| `GET` | `/api/emporia/devices` | Get list of devices |
+| `POST` | `/api/emporia/devices/refresh` | Force device cache refresh |
+| `GET` | `/api/emporia/realtime` | Get current energy data |
+| `GET` | `/api/emporia/history` | Get historical energy data |
+| `GET` | `/api/streams` | Fetch utility stream metadata |
 
 ## 🔒 Security Notes
 

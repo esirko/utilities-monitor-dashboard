@@ -20,10 +20,10 @@ The root endpoint (`GET /`) now returns a `hasStoredCredentials` field that indi
 }
 ```
 
-### 2. New Connect-Stored Endpoint
-Added `POST /api/auth/connect-stored` endpoint that allows the frontend to authenticate using stored credentials from the login screen:
+### 2. New Emporia Auth Endpoint
+Added `POST /api/emporia/auth` endpoint that allows the frontend to authenticate using stored credentials from the login screen:
 
-- **Endpoint**: `POST /api/auth/connect-stored`
+- **Endpoint**: `POST /api/emporia/auth`
 - **Purpose**: Connect using credentials stored in environment variables
 - **Response**: Returns a JWT token on successful authentication
 - **Use Case**: Displayed as a button on the login screen when `hasStoredCredentials` is `true`
@@ -43,7 +43,7 @@ Added `POST /api/auth/connect-stored` endpoint that allows the frontend to authe
 1. **On Load**: The login screen calls `api.checkBackendAuth()` which queries `GET /`
 2. **Detection**: If `hasStoredCredentials` is `true`, displays "Connect with Stored Credentials" button
 3. **User Action**: User can click the button to authenticate without entering credentials
-4. **Authentication**: Frontend calls `POST /api/auth/connect-stored` and receives a JWT token
+4. **Authentication**: Frontend calls `POST /api/emporia/auth` and receives a JWT token
 5. **Success**: User is logged in and redirected to the dashboard
 
 ### Visual Layout

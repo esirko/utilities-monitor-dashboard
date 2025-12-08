@@ -75,7 +75,7 @@ async function attemptReAuthentication(): Promise<boolean> {
   try {
     console.log(`[API] Attempting automatic re-authentication (attempt ${reAuthAttemptCount}/${MAX_REAUTH_ATTEMPTS})...`)
     
-    const response = await fetch(`${API_URL}/api/auth/reauthenticate`, {
+    const response = await fetch(`${API_URL}/api/emporia/auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -114,6 +114,30 @@ async function attemptReAuthentication(): Promise<boolean> {
   } finally {
     reAuthInProgress = false
   }
+}
+
+async function fetchRootSummary(): Promise<any> {
+  const token = localStorage.getItem('auth_token')
+  const headers: HeadersInit = {
+    Accept: 'application/json'
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_URL}/`, { headers })
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new ApiError(
+      data?.message || 'Failed to fetch server status',
+      response.status,
+      data
+    )
+  }
+
+  return data
 }
 
 async function fetchWithAuth(endpoint: string, options: RequestInit = {}, retryOn401: boolean = true) {
@@ -160,30 +184,6 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, retryO
 }
 
 export const api = {
-  async login(username: string, password: string): Promise<{ success: boolean; token: string; message: string }> {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    })
-    
-    const data = await response.json()
-    
-    if (!response.ok) {
-      throw new ApiError(data.message || 'Login failed', response.status, data)
-    }
-    
-    if (!data.success) {
-      throw new ApiError(data.message || 'Login failed', response.status, data)
-    }
-    
-    if (data.token) {
-      localStorage.setItem('auth_token', data.token)
-    }
-    
-    return data
-  },
-
   async logout() {
     localStorage.removeItem('auth_token')
   },
@@ -193,16 +193,16 @@ export const api = {
   },
 
   async getDevices(): Promise<Device[]> {
-    const data = await fetchWithAuth('/api/devices')
+    const data = await fetchWithAuth('/api/emporia/devices')
     return data.devices || []
   },
 
   async getRealtimeData(): Promise<DataPoint> {
-    return fetchWithAuth('/api/energy/realtime')
+    return fetchWithAuth('/api/emporia/realtime')
   },
 
   async getHistoricalData(range: string): Promise<DataPoint[]> {
-    const data = await fetchWithAuth(`/api/energy/history?range=${range}`)
+    const data = await fetchWithAuth(`/api/emporia/history?range=${range}`)
     return data.dataPoints || []
   },
 
@@ -214,29 +214,26 @@ export const api = {
     gasStream?: StreamInfo
     waterStream?: StreamInfo
   }> {
-    const data = await fetchWithAuth('/api/config')
+    const data = await fetchRootSummary()
+    const config = data.config ?? {}
     return {
-      electricityRate: data.electricityRate || 0.314555,
-      systemName: data.systemName || 'Home',
-      gasStreamUrl: data.gasStreamUrl,
-      waterStreamUrl: data.waterStreamUrl,
-      gasStream: normaliseStreamInfo(data.gasStream),
-      waterStream: normaliseStreamInfo(data.waterStream)
+      electricityRate: config.electricityRate ?? data.electricityRate ?? 0.314555,
+      systemName: config.systemName ?? data.systemName ?? 'Home',
+      gasStreamUrl: config.gasStreamUrl,
+      waterStreamUrl: config.waterStreamUrl,
+      gasStream: normaliseStreamInfo(config.gasStream ?? data.gasStream),
+      waterStream: normaliseStreamInfo(config.waterStream ?? data.waterStream)
     }
   },
 
   async checkBackendAuth(): Promise<{ authenticated: boolean; username: string | null; token?: string; hasStoredCredentials?: boolean }> {
     try {
-      const response = await fetch(`${API_URL}/`)
-      if (!response.ok) {
-        return { authenticated: false, username: null, hasStoredCredentials: false }
-      }
-      const data = await response.json()
+      const data = await fetchRootSummary()
       return {
         authenticated: data.authenticated || false,
         username: data.username || null,
         token: data.token || undefined,
-        hasStoredCredentials: data.hasStoredCredentials || false
+        hasStoredCredentials: data.hasStoredCredentials ?? data?.authentication?.hasStoredCredentials ?? false
       }
     } catch (error) {
       console.error('Failed to check backend authentication status:', error)
@@ -246,7 +243,7 @@ export const api = {
 
   async connectWithStoredCredentials(): Promise<{ success: boolean; token?: string; message?: string }> {
     try {
-      const response = await fetch(`${API_URL}/api/auth/connect-stored`, {
+      const response = await fetch(`${API_URL}/api/emporia/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })

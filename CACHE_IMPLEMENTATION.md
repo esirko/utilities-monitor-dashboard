@@ -23,13 +23,13 @@ Added caching for `vue.get_devices()` API calls to reduce unnecessary requests t
 ### 3. Updated Endpoints
 
 All endpoints now use `get_cached_devices()` instead of direct `vue.get_devices()` calls:
-- `GET /api/devices` - Uses cache
-- `GET /api/energy/realtime` - Uses cache
-- `GET /api/energy/history` - Uses cache
+- `GET /api/emporia/devices` - Uses cache
+- `GET /api/emporia/realtime` - Uses cache
+- `GET /api/emporia/history` - Uses cache
 
 ### 4. New Endpoint
 
-**`POST /api/devices/refresh`**
+**`POST /api/emporia/devices/refresh`**
 - Requires authentication
 - Invalidates cache and forces fresh device fetch
 - Returns device count in response
@@ -39,7 +39,7 @@ All endpoints now use `get_cached_devices()` instead of direct `vue.get_devices(
 1. **Reduced API Calls**: Devices are only fetched once per TTL period
 2. **Improved Performance**: Faster response times for cached requests
 3. **Lower Rate Limit Risk**: Fewer calls to Emporia API
-4. **Manual Control**: Can force refresh via `/api/devices/refresh` endpoint
+4. **Manual Control**: Can force refresh via `/api/emporia/devices/refresh` endpoint
 
 ## Configuration
 
@@ -71,6 +71,6 @@ devices = get_cached_devices()
 
 ```bash
 # Force device list refresh
-curl -X POST http://localhost:5001/api/devices/refresh \
+curl -X POST http://localhost:5001/api/emporia/devices/refresh \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```

@@ -15,14 +15,14 @@ Your Python server should expose these REST API endpoints:
 
 ### 1. Authentication Endpoint
 ```
-POST /api/auth/login
+POST /api/emporia/auth
 Body: { "username": "string", "password": "string" }
 Response: { "success": boolean, "token": "string", "message": "string" }
 ```
 
 ### 2. Get Devices Endpoint
 ```
-GET /api/devices
+GET /api/emporia/devices
 Headers: { "Authorization": "Bearer {token}" }
 Response: {
   "devices": [
@@ -38,7 +38,7 @@ Response: {
 
 ### 3. Get Real-Time Energy Data
 ```
-GET /api/energy/realtime
+GET /api/emporia/realtime
 Headers: { "Authorization": "Bearer {token}" }
 Response: {
   "timestamp": number,
@@ -51,7 +51,7 @@ Response: {
 
 ### 4. Get Historical Energy Data
 ```
-GET /api/energy/history?range=1m|5m|15m|1h
+GET /api/emporia/history?range=1m|5m|15m|1h
 Headers: { "Authorization": "Bearer {token}" }
 Response: {
   "dataPoints": [
@@ -80,7 +80,7 @@ CORS(app)  # Enable CORS for React app
 vue = PyEmVue()
 SECRET_KEY = "your-secret-key"  # Change this!
 
-@app.route('/api/auth/login', methods=['POST'])
+@app.route('/api/emporia/auth', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
@@ -104,7 +104,7 @@ def login():
             'message': str(e)
         }), 401
 
-@app.route('/api/devices', methods=['GET'])
+@app.route('/api/emporia/devices', methods=['GET'])
 def get_devices():
     # Verify token here
     try:
@@ -121,7 +121,7 @@ def get_devices():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/energy/realtime', methods=['GET'])
+@app.route('/api/emporia/realtime', methods=['GET'])
 def get_realtime():
     try:
         device_usage = vue.get_device_list_usage(
@@ -222,10 +222,10 @@ Use the login form in the app to authenticate, then the dashboard will automatic
 The backend server implements device caching to reduce API calls to the Emporia service:
 
 - **Initial Fetch**: Devices are fetched from the Emporia API once during login. Cache refreshes occur when explicitly requested.
-- **Cached Usage**: All subsequent requests to `/api/devices`, `/api/energy/realtime`, and `/api/energy/history` use the cached device list
+- **Cached Usage**: All subsequent requests to `/api/emporia/devices`, `/api/emporia/realtime`, and `/api/emporia/history` use the cached device list
 - **Manual Refresh**: If you add/remove devices in your Emporia account, you can refresh the cache by calling:
   ```
-  POST /api/devices/refresh
+  POST /api/emporia/devices/refresh
   Headers: { "Authorization": "Bearer {token}" }
   ```
 

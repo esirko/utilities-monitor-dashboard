@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Lightning, Eye, EyeSlash, Database } from '@phosphor-icons/react'
+import { Lightning, Database } from '@phosphor-icons/react'
 import { api, ApiError } from '@/lib/api'
 
 interface LoginFormProps {
@@ -13,9 +11,6 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false)
@@ -23,42 +18,40 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
   const [isCheckingCredentials, setIsCheckingCredentials] = useState(true)
 
   useEffect(() => {
+    let isMounted = true
+
     const checkStoredCredentials = async () => {
       setIsCheckingCredentials(true)
       try {
         const authStatus = await api.checkBackendAuth()
-        setHasStoredCredentials(authStatus.hasStoredCredentials || false)
+        if (!isMounted) {
+          return
+        }
+        setHasStoredCredentials(authStatus.hasStoredCredentials ?? false)
         setStoredUsername(authStatus.username)
-      } catch (error) {
-        console.error('Failed to check for stored credentials:', error)
+
+        if (authStatus.authenticated) {
+          onLoginSuccess()
+        }
+      } catch (err) {
+        console.error('Failed to check for stored credentials:', err)
+        if (!isMounted) {
+          return
+        }
         setHasStoredCredentials(false)
         setStoredUsername(null)
       } finally {
-        setIsCheckingCredentials(false)
+        if (isMounted) {
+          setIsCheckingCredentials(false)
+        }
       }
     }
-    
+
     checkStoredCredentials()
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsLoading(true)
-
-    try {
-      await api.login(username, password)
-      onLoginSuccess()
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError('Failed to connect to server. Make sure the backend is running.')
-      }
-    } finally {
-      setIsLoading(false)
+    return () => {
+      isMounted = false
     }
-  }
+  }, [onLoginSuccess])
 
   const handleConnectWithStored = async () => {
     setError('')
@@ -101,73 +94,18 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
           </div>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your Emporia Vue username"
-                  required
-                  autoComplete="username"
-                  disabled={isLoading}
-                />
-              </div>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    autoComplete="current-password"
-                    disabled={isLoading}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeSlash className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Connecting...' : 'Connect to Emporia Vue'}
-              </Button>
-            </form>
-
-            {hasStoredCredentials && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or</span>
+            {hasStoredCredentials ? (
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <Database className="w-5 h-5 text-primary" weight="fill" />
+                  <div className="text-sm text-muted-foreground">
+                    Stored credentials{storedUsername ? ` for ${storedUsername}` : ''} detected.
                   </div>
                 </div>
 
@@ -183,14 +121,23 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
                     <>
                       <div>Connect with Stored Credentials</div>
                       {storedUsername && (
-                        <div className="text-sm opacity-90">({storedUsername})</div>
+                        <div className="text-sm opacity-90">{storedUsername}</div>
                       )}
                     </>
                   )}
                 </Button>
-              </>
+              </div>
+            ) : (
+              <div className="space-y-4 mb-6 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Database className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Stored Emporia credentials were not found. Add <code className="font-mono text-xs">EMPORIA_USERNAME</code> and <code className="font-mono text-xs">EMPORIA_PASSWORD</code> to your <code className="font-mono text-xs">.env</code> file, then restart the backend.
+                </p>
+              </div>
             )}
-            
+
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
@@ -199,7 +146,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
                 <span className="bg-card px-2 text-muted-foreground">Or</span>
               </div>
             </div>
-            
+
             <Button
               type="button"
               variant="outline"
@@ -212,7 +159,7 @@ export function LoginForm({ onLoginSuccess, onDemoMode }: LoginFormProps) {
 
             <div className="mt-6 text-center text-xs text-muted-foreground">
               <p>Demo mode lets you explore with simulated data.</p>
-              <p className="mt-2">Connect to see your real Emporia Vue energy data.</p>
+              <p className="mt-2">Update stored credentials and restart the backend to see your real Emporia Vue energy data.</p>
             </div>
           </>
         )}
