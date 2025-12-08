@@ -80,6 +80,41 @@ function App() {
       setDataMode('real')
     }
   }, [isAuthenticated])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadInitialConfig = async () => {
+      try {
+        const config = await api.getConfig()
+        if (cancelled) return
+
+        setElectricityRate(config.electricityRate)
+        setSystemName(config.systemName || 'Not connected')
+
+        if (config.gasStreamUrl !== undefined) {
+          setGasStream(prev => ({ ...prev, rtsp: config.gasStreamUrl || null }))
+        }
+        if (config.waterStreamUrl !== undefined) {
+          setWaterStream(prev => ({ ...prev, rtsp: config.waterStreamUrl || null }))
+        }
+        if (config.gasStream) {
+          setGasStream(config.gasStream)
+        }
+        if (config.waterStream) {
+          setWaterStream(config.waterStream)
+        }
+      } catch (err) {
+        console.error('Failed to fetch initial config from backend:', err)
+      }
+    }
+
+    loadInitialConfig()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
   
   useEffect(() => {
     if (dataMode === 'real' && isAuthenticated) {

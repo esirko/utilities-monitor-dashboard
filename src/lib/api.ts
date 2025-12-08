@@ -218,7 +218,7 @@ export const api = {
     const config = data.config ?? {}
     return {
       electricityRate: config.electricityRate ?? data.electricityRate ?? 0.314555,
-      systemName: config.systemName ?? data.systemName ?? 'Home',
+      systemName: config.systemName ?? data.systemName ?? 'Not connected',
       gasStreamUrl: config.gasStreamUrl,
       waterStreamUrl: config.waterStreamUrl,
       gasStream: normaliseStreamInfo(config.gasStream ?? data.gasStream),
