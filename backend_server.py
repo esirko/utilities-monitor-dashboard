@@ -114,7 +114,7 @@ def _mask_secret(value: str | None) -> str:
         return ''
     if len(value) <= 4:
         return '***'
-    return f"{value[:2]}***{value[-2:]}"
+    return f"{value[:2]}***"
 
 
 def _mask_url_credentials(url: str | None) -> str | None:
