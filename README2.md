@@ -61,6 +61,9 @@ curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/emporia/realti
 curl -H "Authorization: Bearer $token" "http://localhost:$PORT/api/emporia/history?range=1%20Min"
 ```
 
+### pip install
+
+I guess cv2 and pytesseract are optional here, so they're not in requirements.txt, but I can do `pip install pytesseract`, etc.
 
 ## Frontend server
 
