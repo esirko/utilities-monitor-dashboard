@@ -1,4 +1,13 @@
-import { useState, useMemo, useEffect, ReactNode, ComponentProps, useId, useCallback } from 'react'
+import {
+  useState,
+  useMemo,
+  useEffect,
+  ReactNode,
+  ComponentProps,
+  useId,
+  useCallback,
+  useRef,
+} from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -38,15 +47,40 @@ function App() {
   const [waterStream, setWaterStream] = useState<StreamInfo>({})
   const [waterInvertZoom, setWaterInvertZoom] = useState<boolean>(true)
   const waterInvertZoomId = useId()
+  const selectionTimersRef = useRef<Record<'gas' | 'water', ReturnType<typeof setTimeout> | null>>({
+    gas: null,
+    water: null,
+  })
+  const SELECTION_DEBOUNCE_MS = 300
 
   const sendSelection = useCallback(
     (streamName: 'gas' | 'water', selection: SelectionRect | null) => {
-      void api.setStreamSelection(streamName, selection).catch(error => {
-        console.error(`[App] Failed to update ${streamName} selection:`, error)
-      })
+      const timers = selectionTimersRef.current
+      const existing = timers[streamName]
+      if (existing) {
+        clearTimeout(existing)
+      }
+
+      timers[streamName] = window.setTimeout(() => {
+        void api.setStreamSelection(streamName, selection).catch(error => {
+          console.error(`[App] Failed to update ${streamName} selection:`, error)
+        })
+        timers[streamName] = null
+      }, SELECTION_DEBOUNCE_MS)
     },
-    []
+    [SELECTION_DEBOUNCE_MS]
   )
+
+  useEffect(() => {
+    const timers = selectionTimersRef.current
+    return () => {
+      (Object.values(timers) as Array<ReturnType<typeof setTimeout> | null>).forEach(timer => {
+        if (timer) {
+          clearTimeout(timer)
+        }
+      })
+    }
+  }, [])
 
   const handleGasSelectionChange = useCallback(
     (selection: SelectionRect | null) => {
