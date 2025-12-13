@@ -186,7 +186,8 @@ def _analyze_water_region(cropped, selection: SelectionRect) -> None:  # pragma:
         )
         return
 
-    processed = _prepare_frame_for_ocr(cropped)
+    flipped = np.flipud(cropped)
+    processed = _prepare_frame_for_ocr(flipped)
 
     try:
         ocr_text = pytesseract.image_to_string(processed, config="--psm 6")
