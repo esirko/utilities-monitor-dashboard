@@ -26,7 +26,6 @@ function App() {
   const [isDemoMode, setIsDemoMode] = useState(false)
   const [dataMode, setDataMode] = useState<DataMode>('demo')
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
-  const [isPaused, setIsPaused] = useState(false)
   const timeRange = TIME_RANGES[selectedRange]
   const [paneVisibility, setPaneVisibility] = useState<Record<PaneKey, boolean>>({
     electricity: true,
@@ -63,7 +62,7 @@ function App() {
         ? 'demo'
         : 'off'
 
-  const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(timeRange, energyMode, isPaused)
+  const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(timeRange, energyMode, false)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   const [systemName, setSystemName] = useState<string>('Not connected')
@@ -251,7 +250,6 @@ function App() {
     setIsAuthenticated(false)
     setIsDemoMode(false)
     setDataMode('demo')
-    setIsPaused(false)
     setBackendDevices([])
     setGasStream({})
     setWaterStream({})
@@ -261,13 +259,11 @@ function App() {
     setIsAuthenticated(true)
     setIsDemoMode(false)
     setDataMode('real')
-    setIsPaused(false)
   }
   
   const handleDemoMode = () => {
     setIsDemoMode(true)
     setDataMode('demo')
-    setIsPaused(false)
   }
   
   const paneMeta: Record<PaneKey, { label: string; description: string }> = {
@@ -414,23 +410,6 @@ function App() {
             </div>
             
             <div className="flex items-center gap-2">
-              <Button 
-                variant={isPaused ? "default" : "outline"}
-                size="sm" 
-                onClick={() => setIsPaused(!isPaused)}
-              >
-                {isPaused ? (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Pause
-                  </>
-                )}
-              </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <SignOut className="w-4 h-4 mr-2" />
                 {isDemoMode ? 'Exit Demo' : 'Logout'}
@@ -514,9 +493,7 @@ function App() {
           </Card>
           
           <footer className="text-center text-xs text-muted-foreground py-4">
-            <p>
-              {isPaused ? 'Data updates paused' : `Live energy monitoring • Updates every ${timeRange.updateInterval / 1000}s`}
-            </p>
+            <p>Live energy monitoring • Updates every {timeRange.updateInterval / 1000}s</p>
           </footer>
         </div>
       </div>
