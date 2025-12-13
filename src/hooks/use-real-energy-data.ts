@@ -3,7 +3,7 @@ import { DataPoint, TimeRange } from '@/lib/types'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 
-export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' = 'real', isPaused: boolean = false) {
+export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 'off' = 'real', isPaused: boolean = false) {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -47,8 +47,14 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' = 
     historicalDataLoadedRef.current = false
     isLoadingHistoricalRef.current = false
     setDataPoints([])
+
+    if (mode === 'off') {
+      setIsLoading(false)
+      return () => {}
+    }
+
     setIsLoading(true)
-    
+
     setError(null)
     const maxPoints = timeRange.seconds
     

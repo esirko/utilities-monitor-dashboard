@@ -56,7 +56,13 @@ function App() {
     }
   }, [])
   
-  const energyMode: 'real' | 'demo' = isAuthenticated && dataMode === 'real' ? 'real' : 'demo'
+  const energyMode: 'real' | 'demo' | 'off' =
+    isAuthenticated && dataMode === 'real'
+      ? 'real'
+      : isDemoMode && dataMode === 'demo'
+        ? 'demo'
+        : 'off'
+
   const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(timeRange, energyMode, isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
@@ -161,6 +167,13 @@ function App() {
       }
     }
 
+    if (energyMode === 'off') {
+      setBackendDevices([])
+      return () => {
+        cancelled = true
+      }
+    }
+
     fetchDevices()
 
     if (dataMode === 'real' && isAuthenticated) {
@@ -170,7 +183,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [dataMode, isAuthenticated])
+  }, [dataMode, isAuthenticated, energyMode])
 
   useEffect(() => {
     let cancelled = false
