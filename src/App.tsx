@@ -11,9 +11,7 @@ import { TotalUsage } from '@/components/TotalUsage'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
 import { UtilityStream } from '@/components/UtilityStream'
-import { useEnergyData } from '@/hooks/use-energy-data'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
-import { energySimulator } from '@/lib/energySimulator'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
 import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
@@ -58,13 +56,11 @@ function App() {
     }
   }, [])
   
-  const demoData = useEnergyData(timeRange, isPaused)
-  const { dataPoints: realDataPoints, error: realDataError, isLoading: isLoadingRealData } = useRealEnergyData(timeRange, isAuthenticated && dataMode === 'real', isPaused)
+  const energyMode: 'real' | 'demo' = isAuthenticated && dataMode === 'real' ? 'real' : 'demo'
+  const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(timeRange, energyMode, isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   const [systemName, setSystemName] = useState<string>('Not connected')
-  
-  const dataPoints = dataMode === 'real' ? realDataPoints : demoData
   
   useEffect(() => {
     console.log(`[App] Data mode: ${dataMode}, Data points: ${dataPoints.length}, Range: ${selectedRange}`)
@@ -111,40 +107,68 @@ function App() {
   }, [])
   
   useEffect(() => {
-    if (dataMode === 'real' && isAuthenticated) {
-      const fetchDevices = async () => {
-        try {
+    let cancelled = false
+
+    const fetchDevices = async () => {
+      try {
+        if (dataMode === 'real') {
+          if (!isAuthenticated) {
+            if (!cancelled) {
+              setBackendDevices([])
+            }
+            return
+          }
           const devices = await api.getDevices()
-          setBackendDevices(devices)
-        } catch (err) {
-          console.error('Failed to fetch devices from backend:', err)
+          if (!cancelled) {
+            setBackendDevices(devices)
+          }
+        } else {
+          const devices = await api.getDemoDevices()
+          if (!cancelled) {
+            setBackendDevices(devices)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch devices from backend:', err)
+        if (!cancelled) {
           setBackendDevices([])
         }
       }
-      fetchDevices()
-      
-      const fetchConfig = async () => {
-        try {
-          const config = await api.getConfig()
-          setElectricityRate(config.electricityRate)
-          setSystemName(config.systemName)
-          if (config.gasStreamUrl !== undefined) {
-            setGasStream(prev => ({ ...prev, rtsp: config.gasStreamUrl || null }))
-          }
-          if (config.waterStreamUrl !== undefined) {
-            setWaterStream(prev => ({ ...prev, rtsp: config.waterStreamUrl || null }))
-          }
-          if (config.gasStream) {
-            setGasStream(config.gasStream)
-          }
-          if (config.waterStream) {
-            setWaterStream(config.waterStream)
-          }
-        } catch (err) {
-          console.error('Failed to fetch config from backend:', err)
+    }
+
+    const fetchRealConfig = async () => {
+      try {
+        const config = await api.getConfig()
+        if (cancelled) return
+
+        setElectricityRate(config.electricityRate)
+        setSystemName(config.systemName)
+
+        if (config.gasStreamUrl !== undefined) {
+          setGasStream(prev => ({ ...prev, rtsp: config.gasStreamUrl || null }))
         }
+        if (config.waterStreamUrl !== undefined) {
+          setWaterStream(prev => ({ ...prev, rtsp: config.waterStreamUrl || null }))
+        }
+        if (config.gasStream) {
+          setGasStream(config.gasStream)
+        }
+        if (config.waterStream) {
+          setWaterStream(config.waterStream)
+        }
+      } catch (err) {
+        console.error('Failed to fetch config from backend:', err)
       }
-      fetchConfig()
+    }
+
+    fetchDevices()
+
+    if (dataMode === 'real' && isAuthenticated) {
+      fetchRealConfig()
+    }
+
+    return () => {
+      cancelled = true
     }
   }, [dataMode, isAuthenticated])
 
@@ -175,32 +199,30 @@ function App() {
   
   const devices = useMemo(() => {
     const latestData = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1] : null
-    
-    if (dataMode === 'real' && backendDevices.length > 0 && latestData) {
-      const uniqueDevicesMap = new Map<string, any>()
-      backendDevices.forEach(device => {
-        uniqueDevicesMap.set(String(device.id), device)
-      })
-      
-      return Array.from(uniqueDevicesMap.values()).map(device => {
-        const watts = latestData.devices[device.id] || 0
-        return {
-          ...device,
-          id: String(device.id),
-          watts,
-          status: watts > 10 ? 'active' as const : 'idle' as const
-        }
-      })
+    const deviceSource = backendDevices.length > 0
+      ? backendDevices
+      : Object.keys(latestData?.devices ?? {}).map((id) => ({
+          id,
+          name: id,
+          category: 'Demo',
+          status: 'active'
+        }))
+
+    if (deviceSource.length === 0) {
+      return []
     }
-    
-    const deviceList = energySimulator.getDevices()
-    if (!latestData) return deviceList
-    
-    return deviceList.map(device => ({
-      ...device,
-      watts: latestData.devices[device.id] || 0
-    }))
-  }, [dataPoints, dataMode, backendDevices])
+
+    return deviceSource.map(device => {
+      const deviceId = String(device.id)
+      const watts = latestData?.devices?.[deviceId] ?? 0
+      return {
+        ...device,
+        id: deviceId,
+        watts,
+        status: watts > 10 ? 'active' : 'idle'
+      }
+    })
+  }, [dataPoints, backendDevices])
   
   const hourlyCost = useMemo(() => {
     const kWh = currentTotal / 1000
@@ -403,10 +425,10 @@ function App() {
             </div>
           </header>
           
-          {realDataError && dataMode === 'real' && (
+          {energyDataError && (
             <Alert variant="destructive">
               <AlertDescription>
-                {realDataError} - Switched to demo mode.
+                {energyDataError}
               </AlertDescription>
             </Alert>
           )}
@@ -450,18 +472,18 @@ function App() {
             
             <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
               <EnergyChart data={dataPoints} devices={devices} height={400} />
-              {dataMode === 'real' && isLoadingRealData && dataPoints.length === 0 && (
+              {isLoadingEnergyData && dataPoints.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                    <p className="text-sm text-muted-foreground">Loading historical data...</p>
+                    <p className="text-sm text-muted-foreground">Loading energy data...</p>
                   </div>
                 </div>
               )}
-              {dataMode === 'real' && isLoadingRealData && dataPoints.length > 0 && (
+              {isLoadingEnergyData && dataPoints.length > 0 && (
                 <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
                   <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                  <p className="text-xs text-muted-foreground">Loading...</p>
+                  <p className="text-xs text-muted-foreground">Updating data...</p>
                 </div>
               )}
             </div>

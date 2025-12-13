@@ -44,6 +44,9 @@ import os
 import time
 from functools import wraps
 import json
+import math
+import random
+import threading
 from urllib.parse import urlparse, urlunparse
 
 try:
@@ -155,6 +158,191 @@ def _mask_url_credentials(url: str | None) -> str | None:
     ))
 
 
+DEVICE_CONFIGS = [
+    {
+        'name': 'HVAC System',
+        'base_watts': 3200,
+        'variance': 800,
+        'category': 'Climate'
+    },
+    {
+        'name': 'Refrigerator',
+        'base_watts': 150,
+        'variance': 50,
+        'category': 'Kitchen'
+    },
+    {
+        'name': 'Water Heater',
+        'base_watts': 4500,
+        'variance': 500,
+        'category': 'Utility',
+        'duty_cycle': 0.3
+    },
+    {
+        'name': 'Washer/Dryer',
+        'base_watts': 2800,
+        'variance': 400,
+        'category': 'Laundry',
+        'duty_cycle': 0.2
+    },
+    {
+        'name': 'Kitchen Appliances',
+        'base_watts': 800,
+        'variance': 600,
+        'category': 'Kitchen',
+        'duty_cycle': 0.4
+    },
+    {
+        'name': 'Lighting',
+        'base_watts': 400,
+        'variance': 200,
+        'category': 'Lighting'
+    },
+    {
+        'name': 'Entertainment',
+        'base_watts': 250,
+        'variance': 150,
+        'category': 'Electronics'
+    },
+    {
+        'name': 'Home Office',
+        'base_watts': 180,
+        'variance': 80,
+        'category': 'Electronics'
+    },
+    {
+        'name': 'Garage',
+        'base_watts': 120,
+        'variance': 100,
+        'category': 'Utility',
+        'duty_cycle': 0.15
+    },
+]
+
+HISTORY_RANGE_MAP = {
+    '1 Min': 60,
+    '5 Min': 300,
+    '15 Min': 900,
+    '1 Hour': 3600
+}
+
+
+class DemoEnergySimulator:
+    def __init__(self):
+        self.devices: dict[str, dict[str, float | str]] = {}
+        self.phase_offsets: dict[str, float] = {}
+        self.duty_cycle_states: dict[str, bool] = {}
+        self.duty_cycle_timers: dict[str, int] = {}
+        self.config_map: dict[str, dict[str, float | str]] = {}
+        self.lock = threading.Lock()
+
+        for index, config in enumerate(DEVICE_CONFIGS):
+            device_id = f"device-{index + 1}"
+            device = {
+                'id': device_id,
+                'name': config['name'],
+                'category': config['category'],
+                'status': 'active',
+                'watts': config['base_watts'],
+            }
+            self.devices[device_id] = device
+            self.phase_offsets[device_id] = random.random() * math.pi * 2
+            self.config_map[device_id] = config
+
+            if 'duty_cycle' in config:
+                self.duty_cycle_states[device_id] = random.random() > 0.5
+                self.duty_cycle_timers[device_id] = 0
+
+    def _update_device_locked(self, device_id: str, timestamp: int) -> float:
+        device = self.devices.get(device_id)
+        config = self.config_map.get(device_id)
+
+        if not device or not config:
+            return 0.0
+
+        phase_offset = self.phase_offsets.get(device_id, 0.0)
+
+        duty_cycle = config.get('duty_cycle')
+        if duty_cycle is not None:
+            timer = self.duty_cycle_timers.get(device_id, 0) + 1
+            self.duty_cycle_timers[device_id] = timer
+
+            if timer > 30:
+                if random.random() < 0.1:
+                    current_state = self.duty_cycle_states.get(device_id, True)
+                    self.duty_cycle_states[device_id] = not current_state
+                    self.duty_cycle_timers[device_id] = 0
+
+            if not self.duty_cycle_states.get(device_id, True):
+                watts = random.random() * 5
+                device['watts'] = watts
+                device['status'] = 'idle'
+                return watts
+
+        time_factor = timestamp / 1000.0
+        slow_wave = math.sin(time_factor * 0.1 + phase_offset) * 0.3
+        fast_wave = math.sin(time_factor * 0.5 + phase_offset) * 0.15
+        noise = (random.random() - 0.5) * 0.1
+        variation = slow_wave + fast_wave + noise
+
+        base_watts = config['base_watts']
+        variance = config['variance']
+        watts = base_watts + (variance * variation)
+        watts = max(0.0, watts)
+
+        device['watts'] = watts
+        device['status'] = 'active' if watts > base_watts * 0.1 else 'idle'
+        return watts
+
+    def _generate_point_locked(self, timestamp: int) -> dict[str, object]:
+        device_watts: dict[str, float] = {}
+        total = 0.0
+
+        for device_id in self.devices.keys():
+            watts = self._update_device_locked(device_id, timestamp)
+            device_watts[device_id] = round(float(watts), 3)
+            total += watts
+
+        return {
+            'timestamp': timestamp,
+            'devices': device_watts,
+            'total': round(float(total), 3)
+        }
+
+    def generate_point(self, timestamp: int | None = None) -> dict[str, object]:
+        with self.lock:
+            ts = timestamp or int(time.time() * 1000)
+            return self._generate_point_locked(ts)
+
+    def generate_history(self, seconds: int) -> list[dict[str, object]]:
+        if seconds <= 0:
+            return []
+
+        with self.lock:
+            now_ms = int(time.time() * 1000)
+            start_ms = now_ms - (seconds - 1) * 1000
+            history: list[dict[str, object]] = []
+            for i in range(seconds):
+                ts = start_ms + (i * 1000)
+                history.append(self._generate_point_locked(ts))
+            return history
+
+    def get_devices(self) -> list[dict[str, object]]:
+        with self.lock:
+            return [
+                {
+                    'id': device_id,
+                    'name': device['name'],
+                    'category': device['category'],
+                    'status': device.get('status', 'active')
+                }
+                for device_id, device in self.devices.items()
+            ]
+
+
+demo_simulator = DemoEnergySimulator()
+
+
 def _get_configured_credentials() -> tuple[str | None, str | None]:
     username = _get_config_value('EMPORIA_USERNAME')
     password = _get_config_value('EMPORIA_PASSWORD')
@@ -264,6 +452,28 @@ def stream_rtsp_as_mjpeg(rtsp_url: str):
             cap.release()
 
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/api/demo/devices', methods=['GET'])
+def get_demo_devices():
+    """List simulated devices for demo mode."""
+    return jsonify({'devices': demo_simulator.get_devices()})
+
+
+@app.route('/api/demo/realtime', methods=['GET'])
+def get_demo_realtime():
+    """Get simulated real-time energy usage data."""
+    data_point = demo_simulator.generate_point()
+    return jsonify(data_point)
+
+
+@app.route('/api/demo/history', methods=['GET'])
+def get_demo_history():
+    """Get simulated historical energy data."""
+    time_range = request.args.get('range', '1 Min')
+    seconds = HISTORY_RANGE_MAP.get(time_range, 60)
+    history = demo_simulator.generate_history(seconds)
+    return jsonify({'dataPoints': history})
 vue = PyEmVue()
 authenticated = False
 credentials_username = None
@@ -660,15 +870,7 @@ def get_history():
     
     time_range = request.args.get('range', '1 Min')
     
-    # Map frontend ranges to seconds
-    range_map = {
-        '1 Min': 60,
-        '5 Min': 300,
-        '15 Min': 900,
-        '1 Hour': 3600
-    }
-    
-    seconds = range_map.get(time_range, 60)
+    seconds = HISTORY_RANGE_MAP.get(time_range, 60)
     
     try:
         devices = get_cached_devices()
@@ -835,6 +1037,9 @@ if __name__ == '__main__':
     print("  GET    /api/emporia/realtime    - Get real-time energy data")
     print("  GET    /api/emporia/history     - Get historical energy data")
     print("  POST   /api/emporia/logout      - Logout and clear authentication state")
+    print("  GET    /api/demo/devices        - Get demo device list")
+    print("  GET    /api/demo/realtime       - Get demo real-time data")
+    print("  GET    /api/demo/history        - Get demo historical data")
     print("  GET    /api/streams             - Get utility stream metadata")
     print("  GET    /api/streams/<stream>/mjpeg - MJPEG proxy for configured stream")
     print("=" * 60)

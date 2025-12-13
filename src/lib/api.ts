@@ -234,6 +234,33 @@ export const api = {
     return data.dataPoints || []
   },
 
+  async getDemoRealtimeData(): Promise<DataPoint> {
+    const response = await fetch(`${API_URL}/api/demo/realtime`)
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Failed to fetch demo real-time data', response.status, data)
+    }
+    return data
+  },
+
+  async getDemoHistoricalData(range: string): Promise<DataPoint[]> {
+    const response = await fetch(`${API_URL}/api/demo/history?range=${encodeURIComponent(range)}`)
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Failed to fetch demo historical data', response.status, data)
+    }
+    return data.dataPoints || []
+  },
+
+  async getDemoDevices(): Promise<Device[]> {
+    const response = await fetch(`${API_URL}/api/demo/devices`)
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Failed to fetch demo devices', response.status, data)
+    }
+    return data.devices || []
+  },
+
   async getConfig(): Promise<{
     electricityRate: number
     systemName: string
