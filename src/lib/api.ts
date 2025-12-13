@@ -25,6 +25,7 @@ let reAuthAttemptCount = 0
 let lastReAuthAttempt = 0
 const MAX_REAUTH_ATTEMPTS = 3
 const REAUTH_BACKOFF_MS = 5000
+let allowAutoReauth = true
 
 function toAbsoluteUrl(path?: string | null): string | undefined {
   if (!path) return undefined
@@ -52,6 +53,11 @@ function normaliseStreamInfo(raw: any): StreamInfo | undefined {
 }
 
 async function attemptReAuthentication(): Promise<boolean> {
+  if (!allowAutoReauth) {
+    console.log('[API] Auto re-auth disabled; skipping attempt.')
+    return false
+  }
+
   const now = Date.now()
   
   if (reAuthInProgress) {
@@ -184,8 +190,30 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}, retryO
 }
 
 export const api = {
-  async logout() {
-    localStorage.removeItem('auth_token')
+  async logout(): Promise<void> {
+    const token = localStorage.getItem('auth_token')
+
+    try {
+      if (token) {
+        const response = await fetch(`${API_URL}/api/emporia/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}))
+          throw new ApiError(data.message || 'Logout failed', response.status, data)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to logout from backend:', error)
+    } finally {
+      allowAutoReauth = false
+      localStorage.removeItem('auth_token')
+    }
   },
 
   isAuthenticated(): boolean {
@@ -257,6 +285,7 @@ export const api = {
       
       if (data.success && data.token) {
         localStorage.setItem('auth_token', data.token)
+        allowAutoReauth = true
       }
       
       return data

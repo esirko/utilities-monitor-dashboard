@@ -59,7 +59,7 @@ function App() {
   }, [])
   
   const demoData = useEnergyData(timeRange, isPaused)
-  const { dataPoints: realDataPoints, error: realDataError, isLoading: isLoadingRealData } = useRealEnergyData(timeRange, dataMode === 'real', isPaused)
+  const { dataPoints: realDataPoints, error: realDataError, isLoading: isLoadingRealData } = useRealEnergyData(timeRange, isAuthenticated && dataMode === 'real', isPaused)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   const [systemName, setSystemName] = useState<string>('Not connected')
@@ -75,12 +75,6 @@ function App() {
     }
   }, [dataPoints, dataMode, selectedRange])
   
-  useEffect(() => {
-    if (isAuthenticated && dataMode === 'demo') {
-      setDataMode('real')
-    }
-  }, [isAuthenticated])
-
   useEffect(() => {
     let cancelled = false
 
@@ -217,12 +211,15 @@ function App() {
     return hourlyCost * 24 * 30
   }, [hourlyCost])
   
-  const handleLogout = () => {
-    api.logout()
+  const handleLogout = async () => {
+    await api.logout()
     setIsAuthenticated(false)
     setIsDemoMode(false)
     setDataMode('demo')
     setIsPaused(false)
+    setBackendDevices([])
+    setGasStream({})
+    setWaterStream({})
   }
   
   const handleLoginSuccess = () => {

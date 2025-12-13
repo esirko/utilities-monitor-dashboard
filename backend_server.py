@@ -495,6 +495,22 @@ def authenticate_with_stored():
             'message': f'Connection failed: {str(e)}'
         }), 401
 
+
+@app.route('/api/emporia/logout', methods=['POST'])
+@token_required
+def logout_emporia():
+    """Invalidate Emporia authentication and cached data."""
+    global authenticated, credentials_username
+
+    authenticated = False
+    credentials_username = None
+    invalidate_device_cache()
+
+    return jsonify({
+        'success': True,
+        'message': 'Logged out successfully'
+    })
+
 @app.route('/api/emporia/devices', methods=['GET'])
 @token_required
 def get_devices():
@@ -818,6 +834,7 @@ if __name__ == '__main__':
     print("  POST   /api/emporia/devices/refresh - Force refresh device cache")
     print("  GET    /api/emporia/realtime    - Get real-time energy data")
     print("  GET    /api/emporia/history     - Get historical energy data")
+    print("  POST   /api/emporia/logout      - Logout and clear authentication state")
     print("  GET    /api/streams             - Get utility stream metadata")
     print("  GET    /api/streams/<stream>/mjpeg - MJPEG proxy for configured stream")
     print("=" * 60)
