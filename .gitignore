@@ -31,6 +31,7 @@ packages
 pids
 .file-manifest
 .devcontainer/
+__pycache__
 
 .spark-workbench-id
 
