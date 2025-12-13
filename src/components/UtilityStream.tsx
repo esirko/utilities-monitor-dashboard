@@ -8,6 +8,7 @@ interface UtilityStreamProps {
   restreamAvailable?: boolean
   title: string
   note?: string
+  invertZoomPreview?: boolean
 }
 
 interface SelectionRect {
@@ -50,7 +51,7 @@ function getStreamDetails(rtspUrl?: string | null, fallbackUrl?: string | null) 
 
 const Player = ReactPlayer as unknown as React.FC<any>
 
-export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, note }: UtilityStreamProps) {
+export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, note, invertZoomPreview = false }: UtilityStreamProps) {
   const details = useMemo(() => getStreamDetails(rtspUrl, mjpegUrl), [rtspUrl, mjpegUrl])
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>(mjpegUrl ? 'loading' : 'idle')
   const [selection, setSelection] = useState<SelectionRect | null>(null)
@@ -411,7 +412,10 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
         <div className="space-y-2">
           <div className="text-sm font-medium text-muted-foreground">Zoom preview</div>
           <div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
-            <canvas ref={previewCanvasRef} className="h-full w-full" />
+            <canvas
+              ref={previewCanvasRef}
+              className={`h-full w-full ${invertZoomPreview ? 'rotate-180' : ''}`}
+            />
           </div>
           <button
             type="button"

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, ReactNode } from 'react'
+import { useState, useMemo, useEffect, ReactNode, ComponentProps, useId } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { TotalUsage } from '@/components/TotalUsage'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
 import { UtilityStream } from '@/components/UtilityStream'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
@@ -35,6 +36,8 @@ function App() {
   const [splitOrientation, setSplitOrientation] = useState<SplitOrientation>('horizontal')
   const [gasStream, setGasStream] = useState<StreamInfo>({})
   const [waterStream, setWaterStream] = useState<StreamInfo>({})
+  const [waterInvertZoom, setWaterInvertZoom] = useState<boolean>(true)
+  const waterInvertZoomId = useId()
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -300,7 +303,11 @@ function App() {
     title: string,
     description: string,
     cards: Array<{ title: string; body: string }>,
-    stream?: StreamInfo
+    stream?: StreamInfo,
+    options?: {
+      streamProps?: Partial<ComponentProps<typeof UtilityStream>>
+      extrasBelowStream?: ReactNode
+    }
   ) => (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
@@ -320,7 +327,9 @@ function App() {
                 ? 'Backend restreaming is disabled. Install the restream dependencies or expose an MJPEG/WebRTC feed for browser playback.'
                 : undefined)
             }
+            {...options?.streamProps}
           />
+          {options?.extrasBelowStream}
           <div className="grid gap-4 md:grid-cols-2">
             {cards.map(card => (
               <Card key={card.title} className="border-dashed bg-card/40 p-4">
@@ -379,7 +388,25 @@ function App() {
         body: 'Assign follow-ups, jot meeting notes, or track approvals from partner teams in one place.'
       }
     ],
-    waterStream
+    waterStream,
+    {
+      streamProps: { invertZoomPreview: waterInvertZoom },
+      extrasBelowStream: (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Checkbox
+            id={waterInvertZoomId}
+            checked={waterInvertZoom}
+            onCheckedChange={checked => setWaterInvertZoom(checked === true)}
+          />
+          <label
+            htmlFor={waterInvertZoomId}
+            className="cursor-pointer select-none text-muted-foreground"
+          >
+            Render zoom preview upside-down
+          </label>
+        </div>
+      )
+    }
   )
 
   const electricityPane = (!isAuthenticated && !isDemoMode) ? (
