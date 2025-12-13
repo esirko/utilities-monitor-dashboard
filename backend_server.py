@@ -915,7 +915,16 @@ def get_history():
                     watts = (getattr(usage, 'instant', 0) or 0) * 1000
                     devices_data[str(gid)] = round(watts, 2)
                     total_watts += watts
-            
+           
+            # Get channel usage if available
+            if hasattr(usage, 'channels') and usage.channels:
+                for channel_num, channel_usage in usage.channels.items():
+                    if channel_num == "1,2,3":
+                        continue
+                    if channel_usage and hasattr(channel_usage, 'usage'):
+                        channel_watts = (channel_usage.usage or 0) * 1000
+                        devices_data[f"{gid}-{channel_num}"] = round(channel_watts, 2) 
+
             data_points.append({
                 'timestamp': int(timestamp.timestamp() * 1000),
                 'total': round(total_watts, 2),
