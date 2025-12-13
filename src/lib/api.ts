@@ -9,6 +9,13 @@ export interface StreamInfo {
   restreamAvailable?: boolean
 }
 
+export type StreamSelection = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -338,6 +345,34 @@ export const api = {
     } catch (error) {
       console.error('Failed to load stream URLs from backend:', error)
       return { gas: undefined, water: undefined }
+    }
+  },
+
+  async setStreamSelection(streamName: 'gas' | 'water', selection: StreamSelection | null): Promise<void> {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${API_URL}/api/streams/${streamName}/selection`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ selection })
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new ApiError(data.message || 'Failed to update stream selection', response.status, data)
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+      throw new ApiError('Failed to contact server for stream selection update', undefined, error)
     }
   },
 }

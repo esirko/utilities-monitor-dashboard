@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, ReactNode, ComponentProps, useId } from 'react'
+import { useState, useMemo, useEffect, ReactNode, ComponentProps, useId, useCallback } from 'react'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { DeviceList } from '@/components/DeviceList'
 import { TotalUsage } from '@/components/TotalUsage'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
-import { UtilityStream } from '@/components/UtilityStream'
+import { UtilityStream, SelectionRect } from '@/components/UtilityStream'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
@@ -38,6 +38,29 @@ function App() {
   const [waterStream, setWaterStream] = useState<StreamInfo>({})
   const [waterInvertZoom, setWaterInvertZoom] = useState<boolean>(true)
   const waterInvertZoomId = useId()
+
+  const sendSelection = useCallback(
+    (streamName: 'gas' | 'water', selection: SelectionRect | null) => {
+      void api.setStreamSelection(streamName, selection).catch(error => {
+        console.error(`[App] Failed to update ${streamName} selection:`, error)
+      })
+    },
+    []
+  )
+
+  const handleGasSelectionChange = useCallback(
+    (selection: SelectionRect | null) => {
+      sendSelection('gas', selection)
+    },
+    [sendSelection]
+  )
+
+  const handleWaterSelectionChange = useCallback(
+    (selection: SelectionRect | null) => {
+      sendSelection('water', selection)
+    },
+    [sendSelection]
+  )
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -364,7 +387,10 @@ function App() {
         body: 'Capture integration tasks, API needs, or notifications you want to add once the feature ships.'
       }
     ],
-    gasStream
+    gasStream,
+    {
+      streamProps: { onSelectionChange: handleGasSelectionChange }
+    }
   )
 
   const waterPane = renderPlaceholderPane(
@@ -390,7 +416,10 @@ function App() {
     ],
     waterStream,
     {
-      streamProps: { invertZoomPreview: waterInvertZoom },
+      streamProps: {
+        invertZoomPreview: waterInvertZoom,
+        onSelectionChange: handleWaterSelectionChange,
+      },
       extrasBelowStream: (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Checkbox

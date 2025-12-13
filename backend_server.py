@@ -31,6 +31,7 @@ from backend.config import (
 )
 from backend.demo import demo_bp
 from backend.emporia import emporia_bp, get_authenticated_username, is_authenticated
+from backend.streams import analyze_frame, streams_bp
 
 
 app = Flask(__name__)
@@ -38,12 +39,13 @@ CORS(app)
 
 app.register_blueprint(demo_bp)
 app.register_blueprint(emporia_bp)
+app.register_blueprint(streams_bp)
 
 
 log_configuration_snapshot()
 
 
-def stream_rtsp_as_mjpeg(rtsp_url: str) -> Response:
+def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
     """Proxy an RTSP stream as MJPEG if OpenCV is available."""
     if not rtsp_url:
         abort(404, description="Stream not configured")
@@ -65,6 +67,8 @@ def stream_rtsp_as_mjpeg(rtsp_url: str) -> Response:
                     time.sleep(0.1)
                     continue
                 last_frame_time = time.time()
+                if success:
+                    analyze_frame(stream_name, frame)
                 success, buffer = cv2.imencode(".jpg", frame)
                 if not success:
                     continue
@@ -95,7 +99,7 @@ def mjpeg_stream(stream_name: str):
     if stream_name not in {"gas", "water"}:
         abort(404, description="Unknown stream")
     url = GAS_RTSP_URL if stream_name == "gas" else WATER_RTSP_URL
-    return stream_rtsp_as_mjpeg(url)
+    return stream_rtsp_as_mjpeg(stream_name, url)
 
 
 @app.get("/")

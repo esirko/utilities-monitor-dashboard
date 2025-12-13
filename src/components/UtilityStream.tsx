@@ -9,9 +9,10 @@ interface UtilityStreamProps {
   title: string
   note?: string
   invertZoomPreview?: boolean
+  onSelectionChange?: (selection: SelectionRect | null) => void
 }
 
-interface SelectionRect {
+export interface SelectionRect {
   x: number
   y: number
   width: number
@@ -51,7 +52,15 @@ function getStreamDetails(rtspUrl?: string | null, fallbackUrl?: string | null) 
 
 const Player = ReactPlayer as unknown as React.FC<any>
 
-export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, note, invertZoomPreview = false }: UtilityStreamProps) {
+export function UtilityStream({
+  rtspUrl,
+  mjpegUrl,
+  restreamAvailable,
+  title,
+  note,
+  invertZoomPreview = false,
+  onSelectionChange,
+}: UtilityStreamProps) {
   const details = useMemo(() => getStreamDetails(rtspUrl, mjpegUrl), [rtspUrl, mjpegUrl])
   const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>(mjpegUrl ? 'loading' : 'idle')
   const [selection, setSelection] = useState<SelectionRect | null>(null)
@@ -332,6 +341,11 @@ export function UtilityStream({ rtspUrl, mjpegUrl, restreamAvailable, title, not
       }
     }
   }, [selection, status, mjpegUrl, frameSize])
+
+  useEffect(() => {
+    if (!onSelectionChange) return
+    onSelectionChange(selection)
+  }, [selection, onSelectionChange])
 
   if (!details.isValid) {
     return (
