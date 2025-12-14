@@ -186,7 +186,7 @@ def _analyze_water_region(cropped, selection: SelectionRect) -> None:  # pragma:
         )
         return
 
-    flipped = np.flipud(cropped)
+    flipped = np.flipud(cropped) # should be np.rot90(cropped, 2)?
     processed = _prepare_frame_for_ocr(flipped)
 
     try:
