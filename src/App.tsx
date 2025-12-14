@@ -358,8 +358,8 @@ function App() {
 
   const renderPlaceholderPane = (
     title: string,
-    description: string,
-    cards: Array<{ title: string; body: string }>,
+    description?: string,
+    cards?: Array<{ title: string; body: string }>,
     stream?: StreamInfo,
     options?: {
       streamProps?: Partial<ComponentProps<typeof UtilityStream>>
@@ -369,7 +369,9 @@ function App() {
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
         <h2 className="text-lg font-semibold leading-tight">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        {description ? (
+          <p className="text-sm text-muted-foreground">{description}</p>
+        ) : null}
       </div>
       <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
         <div className="space-y-6">
@@ -387,14 +389,16 @@ function App() {
             {...options?.streamProps}
           />
           {options?.extrasBelowStream}
-          <div className="grid gap-4 md:grid-cols-2">
-            {cards.map(card => (
-              <Card key={card.title} className="border-dashed bg-card/40 p-4">
-                <h3 className="text-sm font-semibold">{card.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{card.body}</p>
-              </Card>
-            ))}
-          </div>
+          {cards && cards.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {cards.map(card => (
+                <Card key={card.title} className="border-dashed bg-card/40 p-4">
+                  <h3 className="text-sm font-semibold">{card.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{card.body}</p>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -402,25 +406,8 @@ function App() {
 
   const gasPane = renderPlaceholderPane(
     'Gas',
-    'Capture upcoming gas utility tooling, safety automations, and monitoring plans.',
-    [
-      {
-        title: 'Trigger ideas',
-        body: 'Sketch automation triggers such as peak-hour usage, device state changes, or manual overrides.'
-      },
-      {
-        title: 'Action sequences',
-        body: 'Plan the steps each routine should perform. This placeholder will host drag-and-drop workflow editors.'
-      },
-      {
-        title: 'Metrics to monitor',
-        body: 'List the readings that confirm or abort a routine, including voltage, temperature, or occupancy.'
-      },
-      {
-        title: 'Next steps',
-        body: 'Capture integration tasks, API needs, or notifications you want to add once the feature ships.'
-      }
-    ],
+    undefined,
+    undefined,
     gasStream,
     {
       streamProps: { onSelectionChange: handleGasSelectionChange }
@@ -429,25 +416,8 @@ function App() {
 
   const waterPane = renderPlaceholderPane(
     'Water',
-    'Draft dashboards, alerts, and conservation ideas for water usage.',
-    [
-      {
-        title: 'Observation log',
-        body: 'Note trends, anomalies, or spikes that deserve deeper investigation when analytics tools arrive.'
-      },
-      {
-        title: 'Hypothesis queue',
-        body: 'Record questions the team wants to validate—like device drift, seasonal patterns, or forecast accuracy.'
-      },
-      {
-        title: 'Data wishlist',
-        body: 'Document external feeds or sensors that would enhance reporting once they are connected.'
-      },
-      {
-        title: 'Collaboration notes',
-        body: 'Assign follow-ups, jot meeting notes, or track approvals from partner teams in one place.'
-      }
-    ],
+    undefined,
+    undefined,
     waterStream,
     {
       streamProps: {
