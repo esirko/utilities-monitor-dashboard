@@ -118,6 +118,9 @@ def _analyze_selected_region(stream_name: str, frame, selection: SelectionRect) 
     if cropped is None:
         return
 
+    # Bypass analysis for now - it apparently runs synchronously and needs some work to be useful
+    return
+
     if stream_name == "gas":
         _analyze_gas_region(cropped, selection)
     elif stream_name == "water":
