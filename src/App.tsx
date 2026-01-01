@@ -707,7 +707,7 @@ function App() {
                   <ToggleGroupItem
                     key={pane}
                     value={pane}
-                    className="capitalize whitespace-nowrap px-3 border border-transparent text-muted-foreground transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent hover:text-foreground data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 data-[state=on]:hover:border-orange-400"
+                    className="capitalize px-3 text-sm leading-tight border border-transparent text-muted-foreground transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent hover:text-foreground data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 data-[state=on]:hover:border-orange-400"
                   >
                     {paneMeta[pane].label}
                   </ToggleGroupItem>
