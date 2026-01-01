@@ -23,7 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
-import { Lightning, ChartLine, SignOut, Pause, Play, TrendUp, TrendDown } from '@phosphor-icons/react'
+import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
 
 type DataMode = 'demo' | 'real'
 
@@ -305,11 +305,6 @@ function App() {
   }, [hourlyCost])
 
   const totalKilowatts = useMemo(() => currentTotal / 1000, [currentTotal])
-  const trendDelta = useMemo(() => currentTotal - previousTotal, [currentTotal, previousTotal])
-  const trendPercent = useMemo(() => {
-    if (previousTotal <= 0) return 0
-    return (trendDelta / previousTotal) * 100
-  }, [trendDelta, previousTotal])
   
   const handleLogout = async () => {
     await api.logout()
@@ -505,18 +500,6 @@ function App() {
                       <span className="text-3xl font-bold tabular-nums">{totalKilowatts.toFixed(3)}</span>
                       <span className="text-sm text-muted-foreground">kW</span>
                     </div>
-                    {previousTotal > 0 && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        {trendDelta > 0 ? (
-                          <TrendUp weight="bold" className="h-3 w-3 text-accent" />
-                        ) : (
-                          <TrendDown weight="bold" className="h-3 w-3 text-primary" />
-                        )}
-                        <span>
-                          {Math.abs(trendPercent).toFixed(1)}% {trendDelta > 0 ? 'increase' : 'decrease'}
-                        </span>
-                      </div>
-                    )}
                   </div>
                   <div className="flex flex-col min-w-[150px]">
                     <span className="text-xs uppercase tracking-wider text-muted-foreground">Hourly Cost</span>
