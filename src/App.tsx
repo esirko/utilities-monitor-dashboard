@@ -670,7 +670,7 @@ function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
-        <Card className="flex items-center justify-between gap-3 p-3 shadow-sm sm:p-4">
+        <Card className="flex items-center gap-3 p-3 shadow-sm sm:p-4">
           <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
             <span className="inline-flex items-center gap-2 text-left sm:gap-3">
               <span>{utilitiesTitle}</span>
@@ -686,49 +686,54 @@ function App() {
               </span>
             </span>
           </h1>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <ToggleGroup
-              type="multiple"
-              value={utilitiesToggleValues}
-              onValueChange={handlePaneSelectionChange}
-              variant="outline"
-              size="sm"
-            >
-              {paneKeys.map((pane) => (
-                <ToggleGroupItem
-                  key={pane}
-                  value={pane}
-                  className="capitalize whitespace-nowrap px-3"
-                >
-                  {paneMeta[pane].label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            <ToggleGroup
-              type="single"
-              value={splitOrientation}
-              onValueChange={(value) => {
-                if (!value || !canAdjustOrientation) return
-                setSplitOrientation(value as SplitOrientation)
-              }}
-              variant="outline"
-              size="sm"
-              className={!canAdjustOrientation ? 'opacity-60' : ''}
-            >
-              <ToggleGroupItem value="horizontal" disabled={!canAdjustOrientation} className="px-3">
-                Horizontal
-              </ToggleGroupItem>
-              <ToggleGroupItem value="vertical" disabled={!canAdjustOrientation} className="px-3">
-                Vertical
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
         </Card>
         <div className="rounded-xl border bg-card/40 shadow-sm">
           <div className="h-[72vh] min-h-[520px] overflow-hidden">
             {renderLayout()}
           </div>
         </div>
+        <footer className="mt-auto">
+          <Card className="flex flex-col gap-3 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+            <span className="text-sm font-medium text-muted-foreground">View controls</span>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <ToggleGroup
+                type="multiple"
+                value={utilitiesToggleValues}
+                onValueChange={handlePaneSelectionChange}
+                variant="outline"
+                size="sm"
+              >
+                {paneKeys.map((pane) => (
+                  <ToggleGroupItem
+                    key={pane}
+                    value={pane}
+                    className="capitalize whitespace-nowrap px-3"
+                  >
+                    {paneMeta[pane].label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <ToggleGroup
+                type="single"
+                value={splitOrientation}
+                onValueChange={(value) => {
+                  if (!value || !canAdjustOrientation) return
+                  setSplitOrientation(value as SplitOrientation)
+                }}
+                variant="outline"
+                size="sm"
+                className={!canAdjustOrientation ? 'opacity-60' : ''}
+              >
+                <ToggleGroupItem value="horizontal" disabled={!canAdjustOrientation} className="px-3">
+                  Horizontal
+                </ToggleGroupItem>
+                <ToggleGroupItem value="vertical" disabled={!canAdjustOrientation} className="px-3">
+                  Vertical
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </Card>
+        </footer>
       </div>
     </div>
   )
