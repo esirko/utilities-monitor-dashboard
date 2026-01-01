@@ -16,7 +16,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { EnergyChart } from '@/components/EnergyChart'
 import { DeviceList } from '@/components/DeviceList'
-import { TotalUsage } from '@/components/TotalUsage'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
 import { UtilityStream, SelectionRect } from '@/components/UtilityStream'
@@ -24,7 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
-import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
+import { Lightning, ChartLine, SignOut, Pause, Play, TrendUp, TrendDown } from '@phosphor-icons/react'
 
 type DataMode = 'demo' | 'real'
 
@@ -304,6 +303,13 @@ function App() {
   const monthlyCost = useMemo(() => {
     return hourlyCost * 24 * 30
   }, [hourlyCost])
+
+  const totalKilowatts = useMemo(() => currentTotal / 1000, [currentTotal])
+  const trendDelta = useMemo(() => currentTotal - previousTotal, [currentTotal, previousTotal])
+  const trendPercent = useMemo(() => {
+    if (previousTotal <= 0) return 0
+    return (trendDelta / previousTotal) * 100
+  }, [trendDelta, previousTotal])
   
   const handleLogout = async () => {
     await api.logout()
@@ -485,59 +491,71 @@ function App() {
             </Alert>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <TotalUsage 
-              currentWatts={currentTotal} 
-              previousWatts={previousTotal}
-            />
-            <Card className="p-6 border-2 border-primary/30">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Hourly Cost</div>
-              <div className="text-3xl font-bold text-foreground tabular-nums">
-                ${hourlyCost.toFixed(4)}
-              </div>
-            </Card>
-            <Card className="p-6 border-2 border-primary/30">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Monthly Extrapolation</div>
-              <div className="text-3xl font-bold text-foreground tabular-nums">
-                ${monthlyCost.toFixed(2)}
-              </div>
-            </Card>
-          </div>
-          
           <Card className="p-6">
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <ChartLine weight="bold" className="w-5 h-5 text-primary" />
-                <h2 className="text-xl font-semibold">Power Usage</h2>
-              </div>
-              
-              <Tabs value={selectedRange} onValueChange={(v) => setSelectedRange(v as keyof typeof TIME_RANGES)}>
-                <TabsList className="grid grid-cols-4 w-full sm:w-auto">
-                  {Object.entries(TIME_RANGES).map(([key, range]) => (
-                    <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
-                      {range.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
-            
-            <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
-              <EnergyChart data={dataPoints} devices={devices} height={400} />
-              {isLoadingEnergyData && dataPoints.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
-                  <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                    <p className="text-sm text-muted-foreground">Loading energy data...</p>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-wrap items-start justify-between gap-6">
+                <div className="flex items-center gap-2">
+                  <ChartLine weight="bold" className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Power Usage</h2>
+                </div>
+                <div className="flex flex-wrap items-end gap-x-8 gap-y-4 text-sm sm:text-base">
+                  <div className="flex flex-col min-w-[150px]">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Total Power</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold tabular-nums">{totalKilowatts.toFixed(3)}</span>
+                      <span className="text-sm text-muted-foreground">kW</span>
+                    </div>
+                    {previousTotal > 0 && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        {trendDelta > 0 ? (
+                          <TrendUp weight="bold" className="h-3 w-3 text-accent" />
+                        ) : (
+                          <TrendDown weight="bold" className="h-3 w-3 text-primary" />
+                        )}
+                        <span>
+                          {Math.abs(trendPercent).toFixed(1)}% {trendDelta > 0 ? 'increase' : 'decrease'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col min-w-[150px]">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Hourly Cost</span>
+                    <span className="text-2xl font-semibold tabular-nums">${hourlyCost.toFixed(4)}</span>
+                  </div>
+                  <div className="flex flex-col min-w-[150px]">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">Monthly Extrapolation</span>
+                    <span className="text-2xl font-semibold tabular-nums">${monthlyCost.toFixed(2)}</span>
                   </div>
                 </div>
-              )}
-              {isLoadingEnergyData && dataPoints.length > 0 && (
-                <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
-                  <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                  <p className="text-xs text-muted-foreground">Updating data...</p>
-                </div>
-              )}
+              </div>
+              <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
+                <EnergyChart data={dataPoints} devices={devices} height={400} />
+                {isLoadingEnergyData && dataPoints.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
+                    <div className="text-center">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                      <p className="text-sm text-muted-foreground">Loading energy data...</p>
+                    </div>
+                  </div>
+                )}
+                {isLoadingEnergyData && dataPoints.length > 0 && (
+                  <div className="absolute top-2 right-2 flex items-center gap-2 bg-card/90 backdrop-blur-sm px-3 py-1.5 rounded-md border border-border">
+                    <div className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                    <p className="text-xs text-muted-foreground">Updating data...</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-start">
+                <Tabs value={selectedRange} onValueChange={(v) => setSelectedRange(v as keyof typeof TIME_RANGES)}>
+                  <TabsList className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-0 sm:w-auto">
+                    {Object.entries(TIME_RANGES).map(([key, range]) => (
+                      <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
+                        {range.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
           </Card>
           
