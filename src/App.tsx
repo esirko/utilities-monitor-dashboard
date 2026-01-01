@@ -707,7 +707,7 @@ function App() {
                   <ToggleGroupItem
                     key={pane}
                     value={pane}
-                    className="capitalize whitespace-nowrap px-3 border border-transparent transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900"
+                    className="capitalize whitespace-nowrap px-3 border border-transparent text-muted-foreground transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent hover:text-foreground data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 data-[state=on]:hover:border-orange-400"
                   >
                     {paneMeta[pane].label}
                   </ToggleGroupItem>
@@ -727,14 +727,14 @@ function App() {
                 <ToggleGroupItem
                   value="horizontal"
                   disabled={!canAdjustOrientation}
-                  className="px-3 border border-transparent transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 disabled:opacity-60"
+                  className="px-3 border border-transparent text-muted-foreground transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent hover:text-foreground data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 data-[state=on]:hover:border-orange-400 disabled:opacity-60"
                 >
                   Horizontal
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="vertical"
                   disabled={!canAdjustOrientation}
-                  className="px-3 border border-transparent transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 disabled:opacity-60"
+                  className="px-3 border border-transparent text-muted-foreground transition-all hover:border-2 hover:border-orange-400 hover:bg-transparent hover:text-foreground data-[state=on]:border-2 data-[state=on]:border-yellow-400 data-[state=on]:bg-yellow-400 data-[state=on]:text-slate-900 data-[state=on]:hover:border-orange-400 disabled:opacity-60"
                 >
                   Vertical
                 </ToggleGroupItem>
