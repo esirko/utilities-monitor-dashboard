@@ -707,7 +707,7 @@ function App() {
                   <ToggleGroupItem
                     key={pane}
                     value={pane}
-                    className="capitalize whitespace-nowrap px-3"
+                    className="capitalize whitespace-nowrap px-3 border border-transparent transition-colors hover:border-primary/50 hover:bg-transparent data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
                   >
                     {paneMeta[pane].label}
                   </ToggleGroupItem>
@@ -724,10 +724,18 @@ function App() {
                 size="sm"
                 className={!canAdjustOrientation ? 'opacity-60' : ''}
               >
-                <ToggleGroupItem value="horizontal" disabled={!canAdjustOrientation} className="px-3">
+                <ToggleGroupItem
+                  value="horizontal"
+                  disabled={!canAdjustOrientation}
+                  className="px-3 border border-transparent transition-colors hover:border-primary/50 hover:bg-transparent data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary disabled:opacity-60"
+                >
                   Horizontal
                 </ToggleGroupItem>
-                <ToggleGroupItem value="vertical" disabled={!canAdjustOrientation} className="px-3">
+                <ToggleGroupItem
+                  value="vertical"
+                  disabled={!canAdjustOrientation}
+                  className="px-3 border border-transparent transition-colors hover:border-primary/50 hover:bg-transparent data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:text-primary disabled:opacity-60"
+                >
                   Vertical
                 </ToggleGroupItem>
               </ToggleGroup>
