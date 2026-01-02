@@ -5,6 +5,8 @@ import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence
 import os
+import json
+from pathlib import Path
 
 import numpy as np
 
@@ -28,6 +30,9 @@ except ImportError:  # pragma: no cover
 from flask import Blueprint, abort, jsonify, request
 
 VALID_STREAMS = {"gas", "water"}
+
+_DEFAULT_STATE_PATH = Path(__file__).resolve().parent.parent / "stream_selections.json"
+_STATE_FILE = Path(os.environ.get("STREAM_SELECTIONS_FILE", str(_DEFAULT_STATE_PATH))).resolve()
 
 
 @dataclass
@@ -63,10 +68,50 @@ def _normalise_boxes(boxes: Optional[Sequence[SelectionRect] | Sequence[Optional
     return normalised[:2]
 
 
-_stream_selections: Dict[str, List[SelectionRect]] = {
-    stream: _normalise_boxes(None) for stream in VALID_STREAMS
-}
-_analysis_results: Dict[str, Dict[str, object]] = {stream: {} for stream in VALID_STREAMS}
+def _load_persisted_selections() -> Dict[str, List[SelectionRect]]:
+    selections: Dict[str, List[SelectionRect]] = {
+        stream: _normalise_boxes(None) for stream in VALID_STREAMS
+    }
+
+    try:
+        if _STATE_FILE.exists():
+            with _STATE_FILE.open("r", encoding="utf-8") as fh:
+                raw = json.load(fh)
+
+            if isinstance(raw, dict):
+                for stream, payload in raw.items():
+                    if stream not in selections or not isinstance(payload, list):
+                        continue
+
+                    parsed: List[SelectionRect] = []
+                    for entry in payload:
+                        if not isinstance(entry, dict):
+                            continue
+                        try:
+                            parsed.append(_parse_box(entry))
+                        except ValueError:
+                            continue
+                    selections[stream] = _normalise_boxes(parsed)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        print(f"[Streams] Warning: failed to load persisted selections: {exc}")
+
+    return selections
+
+
+def _persist_selections() -> None:
+    try:
+        _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            stream: [_serialise_box(box) for box in _normalise_boxes(boxes)]
+            for stream, boxes in _stream_selections.items()
+        }
+        with _STATE_FILE.open("w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, sort_keys=True)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        print(f"[Streams] Warning: failed to persist selections: {exc}")
+
+
+
 
 streams_bp = Blueprint("streams", __name__, url_prefix="/api/streams")
 
@@ -112,6 +157,10 @@ def _parse_boxes(payload: object) -> List[SelectionRect]:
     return boxes
 
 
+_stream_selections: Dict[str, List[SelectionRect]] = _load_persisted_selections()
+_analysis_results: Dict[str, Dict[str, object]] = {stream: {} for stream in VALID_STREAMS}
+
+
 def _serialise_box(box: SelectionRect) -> dict:
     return {
         "x": box.x,
@@ -131,6 +180,7 @@ def update_selection(stream_name: str):
     if data.get("reset"):
         boxes = _normalise_boxes(None)
         _stream_selections[stream] = boxes
+        _persist_selections()
         return jsonify({
             "success": True,
             "boxes": [_serialise_box(box) for box in boxes],
@@ -141,6 +191,7 @@ def update_selection(stream_name: str):
     except ValueError as exc:
         abort(400, description=str(exc))
     _stream_selections[stream] = boxes
+    _persist_selections()
 
     return jsonify({
         "success": True,
