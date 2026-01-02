@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
+import copy
 from functools import wraps
 from typing import Any, Dict, Tuple
 
@@ -64,17 +65,17 @@ def get_cached_devices():
             "[Cache] Using cached devices (age: "
             f"{(now - device_cache['timestamp']).total_seconds():.1f}s)"
         )
-        return device_cache["devices"]
+        return copy.deepcopy(device_cache["devices"])
 
     print("[Cache] Cache miss or stale, fetching devices from API")
     log_emporia_request("vue.get_devices")
     devices = vue.get_devices()
     log_devices(devices)
 
-    device_cache["devices"] = devices
+    device_cache["devices"] = copy.deepcopy(devices)
     device_cache["timestamp"] = now
     print(f"[Cache] Cached {len(devices)} devices")
-    return devices
+    return copy.deepcopy(device_cache["devices"])
 
 
 def token_required(func):
