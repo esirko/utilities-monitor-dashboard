@@ -24,6 +24,7 @@ export function EnergyChart({
   const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
   const lastMousePositionRef = useRef<{ x: number; y: number } | null>(null)
   const isMouseOverRef = useRef(false)
+  const tooltipVisibleRef = useRef(false)
   const devicesMapRef = useRef<Map<string, Device>>(new Map())
   
   useEffect(() => {
@@ -343,6 +344,7 @@ export function EnergyChart({
         .style('font-family', 'JetBrains Mono')
         .style('font-size', '12px')
         .style('color', 'oklch(0.95 0.01 240)')
+      tooltipVisibleRef.current = false
     }
     
     const tooltip = tooltipRef.current
@@ -390,7 +392,30 @@ export function EnergyChart({
           .style('opacity', 1)
           .style('left', `${offsetX - tooltip.node()!.offsetWidth - 10}px`)
           .style('top', `${offsetY - 10}px`)
+        tooltipVisibleRef.current = true
       }
+    }
+
+    const hideTooltip = () => {
+      isMouseOverRef.current = false
+      lastMousePositionRef.current = null
+      tooltipVisibleRef.current = false
+      tooltip.style('opacity', 0)
+    }
+
+    const showTooltipFromEvent = (event: PointerEvent | MouseEvent) => {
+      const [mouseX, mouseY] = d3.pointer(event)
+      lastMousePositionRef.current = { x: mouseX, y: mouseY }
+      isMouseOverRef.current = true
+      const offsetX =
+        typeof (event as PointerEvent).offsetX === 'number'
+          ? (event as PointerEvent).offsetX
+          : mouseX + margin.left
+      const offsetY =
+        typeof (event as PointerEvent).offsetY === 'number'
+          ? (event as PointerEvent).offsetY
+          : mouseY + margin.top
+      updateTooltip(mouseX, mouseY, offsetX, offsetY)
     }
     
     const overlay = g
@@ -400,17 +425,28 @@ export function EnergyChart({
       .attr('height', innerHeight)
       .attr('fill', 'none')
       .attr('pointer-events', 'all')
+      .on('pointerdown', function(event) {
+        const pointerEvent = event as PointerEvent
+        if (pointerEvent.pointerType === 'touch') {
+          if (tooltipVisibleRef.current) {
+            hideTooltip()
+          } else {
+            showTooltipFromEvent(pointerEvent)
+          }
+          event.preventDefault()
+        }
+      })
+      .on('pointermove', function(event) {
+        const pointerEvent = event as PointerEvent
+        if (pointerEvent.pointerType !== 'mouse') {
+          showTooltipFromEvent(pointerEvent)
+        }
+      })
       .on('mousemove', function(event) {
-        const [mouseX, mouseY] = d3.pointer(event)
-        lastMousePositionRef.current = { x: mouseX, y: mouseY }
-        isMouseOverRef.current = true
-        updateTooltip(mouseX, mouseY, event.offsetX, event.offsetY)
+        showTooltipFromEvent(event as MouseEvent)
       })
-      .on('mouseout', () => {
-        isMouseOverRef.current = false
-        lastMousePositionRef.current = null
-        tooltip.style('opacity', 0)
-      })
+      .on('pointerleave', hideTooltip)
+      .on('mouseout', hideTooltip)
     
     if (isMouseOverRef.current && lastMousePositionRef.current) {
       const svgRect = svgRef.current?.getBoundingClientRect()
