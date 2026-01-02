@@ -440,69 +440,118 @@ def get_history():
 
     try:
         devices = get_cached_devices()
-        device_gids = []
+        now = datetime.datetime.now(datetime.UTC)
+        start_time = now - datetime.timedelta(seconds=seconds)
+        end_time = now
+
+        # Cache device info for verbose logging parity
         device_info = {}
         for device in devices:
-            if device.device_gid not in device_gids:
-                device_gids.append(device.device_gid)
+            if device.device_gid not in device_info:
                 device_info[device.device_gid] = device
-            else:
-                device_info[device.device_gid].channels += device.channels
 
+        # Accumulate usage values by timestamp (milliseconds)
+        aggregated_points: Dict[int, Dict[str, Any]] = {}
+
+        def ensure_entry(ts_ms: int) -> Dict[str, Any]:
+            entry = aggregated_points.get(ts_ms)
+            if entry is None:
+                entry = {"devices": {}, "total": 0.0}
+                aggregated_points[ts_ms] = entry
+            return entry
+
+        for device in devices:
+            channels = getattr(device, "channels", []) or []
+            for channel in channels:
+                if not channel or not getattr(channel, "channel_num", None):
+                    continue
+
+                channel_name = (getattr(channel, "name", "") or "").lower()
+                is_total_channel = channel_name == "main" or channel.channel_num in {"1,2,3", "mains"}
+                device_key = str(device.device_gid) if is_total_channel else f"{device.device_gid}-{channel.channel_num}"
+
+                log_emporia_request(
+                    "vue.get_chart_usage",
+                    deviceGid=device.device_gid,
+                    channel=channel.channel_num,
+                    start=start_time.isoformat(),
+                    end=end_time.isoformat(),
+                    scale=Scale.SECOND.value,
+                    unit=Unit.KWH.value,
+                )
+
+                try:
+                    usage_list, first_instant = vue.get_chart_usage(
+                        channel,
+                        start=start_time,
+                        end=end_time,
+                        scale=Scale.SECOND.value,
+                        unit=Unit.KWH.value,
+                    )
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    print(
+                        f"[Emporia API] ✗ get_chart_usage failed for device {device.device_gid} "
+                        f"channel {channel.channel_num}: {exc}"
+                    )
+                    continue
+
+                if not usage_list:
+                    continue
+
+                measurement_start = first_instant or start_time
+                if measurement_start.tzinfo is None:
+                    measurement_start = measurement_start.replace(tzinfo=datetime.UTC)
+                measurement_start = measurement_start.astimezone(datetime.UTC)
+
+                for index, usage_value in enumerate(usage_list):
+                    if usage_value is None:
+                        continue
+                    sample_time = measurement_start + datetime.timedelta(seconds=index)
+                    if sample_time < start_time or sample_time > end_time + datetime.timedelta(seconds=1):
+                        continue
+                    timestamp_ms = int(sample_time.timestamp() * 1000)
+                    entry = ensure_entry(timestamp_ms)
+                    watts = round(float(usage_value) * 3600 * 1000, 2)
+                    entry_devices = entry.setdefault("devices", {})
+                    if not isinstance(entry_devices, dict):
+                        entry_devices = {}
+                        entry["devices"] = entry_devices
+                    previous_value = float(entry_devices.get(device_key, 0.0))
+                    entry_devices[device_key] = watts
+                    if is_total_channel:
+                        current_total = float(entry.get("total", 0.0))
+                        entry["total"] = current_total - previous_value + watts
+
+                if VERBOSE_LOGGING and usage_list:
+                    print(
+                        f"[Emporia API] RESPONSE < vue.get_chart_usage: device {device.device_gid} "
+                        f"channel {channel.channel_num} samples={len(usage_list)}"
+                    )
+
+        sorted_timestamps = sorted(aggregated_points.keys())
         data_points = []
-        now = datetime.datetime.now(datetime.UTC)
 
-        for i in range(seconds, 0, -1):
-            timestamp = now - datetime.timedelta(seconds=i)
-            log_emporia_request(
-                "vue.get_device_list_usage",
-                deviceGids=device_gids,
-                instant=timestamp.isoformat(),
-                scale=Scale.SECOND.value,
-                unit=Unit.KWH.value,
-            )
-            usage_dict = vue.get_device_list_usage(
-                deviceGids=device_gids,
-                instant=timestamp,
-                scale=Scale.SECOND.value,
-                unit=Unit.KWH.value,
-            )
-
-            for gid, device in usage_dict.items():
-                for channelnum, channel in device.channels.items():
-                    channel.usage = 3600 * channel.usage
-
-            if VERBOSE_LOGGING:
-                log_usage_recursive(usage_dict, device_info)
-            else:
-                log_usage_compact(usage_dict, device_info)
-
-            devices_data = {}
-            total_watts = 0.0
-
-            for device in devices:
-                gid = device.device_gid
-                if gid in usage_dict:
-                    usage = usage_dict[gid]
-                    watts = (getattr(usage, "instant", 0) or 0) * 1000
-                    devices_data[str(gid)] = round(watts, 2)
-                    total_watts += watts
-
-                    if hasattr(usage, "channels") and usage.channels:
-                        for channel_num, channel_usage in usage.channels.items():
-                            if channel_num == "1,2,3":
-                                continue
-                            if channel_usage and hasattr(channel_usage, "usage"):
-                                channel_watts = (channel_usage.usage or 0) * 1000
-                                devices_data[f"{gid}-{channel_num}"] = round(channel_watts, 2)
-
+        for ts in sorted_timestamps:
+            entry = aggregated_points[ts]
+            devices_data = entry.get("devices", {})
+            if not isinstance(devices_data, dict):
+                devices_data = {}
+            devices_rounded = {
+                key: round(float(value), 2) for key, value in devices_data.items()
+            }
+            total_watts = float(entry.get("total", 0.0))
+            if total_watts <= 0.0 and devices_rounded:
+                total_watts = sum(devices_rounded.values())
             data_points.append(
                 {
-                    "timestamp": int(timestamp.timestamp() * 1000),
+                    "timestamp": ts,
                     "total": round(total_watts, 2),
-                    "devices": devices_data,
+                    "devices": devices_rounded,
                 }
             )
+
+        # Keep only the requested window (most recent N seconds)
+        data_points = data_points[-seconds:]
 
         return jsonify({"dataPoints": data_points})
 
