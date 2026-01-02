@@ -383,7 +383,7 @@ def get_realtime():
         )
         usage_dict = vue.get_device_list_usage(
             deviceGids=device_gids,
-            instant=None,
+            instant=instant,
             scale=Scale.SECOND.value,
             unit=Unit.KWH.value,
         )
