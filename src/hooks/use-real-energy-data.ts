@@ -10,6 +10,8 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
   const intervalRef = useRef<number | undefined>(undefined)
   const scrollIntervalRef = useRef<number | undefined>(undefined)
   const retroIntervalRef = useRef<number | undefined>(undefined)
+  const primaryAlignTimeoutRef = useRef<number | undefined>(undefined)
+  const retroAlignTimeoutRef = useRef<number | undefined>(undefined)
   const lastToastRef = useRef<number>(0)
   const isLoadingHistoricalRef = useRef<boolean>(false)
   const historicalDataLoadedRef = useRef<boolean>(false)
@@ -17,6 +19,10 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
   const retroCorrectionSecondsRef = useRef<number>(0)
   const useRealData = mode === 'real'
   
+  const alignToSecond = useCallback((timestamp: number): number => {
+    return Math.round(timestamp / 1000) * 1000
+  }, [])
+
   const calculateTotal = useCallback((dataPoint: DataPoint): DataPoint => {
     const total = Object.values(dataPoint.devices).reduce((sum, watts) => sum + watts, 0)
     return {
@@ -26,28 +32,41 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
   }, [])
   
   const mergeAndSortDataPoints = useCallback((existing: DataPoint[], incoming: DataPoint[]): DataPoint[] => {
-    const allPoints = [...existing, ...incoming]
-    const uniqueMap = new Map<number, DataPoint>()
-    
-    allPoints.forEach(point => {
-      const roundedTimestamp = Math.floor(point.timestamp / 100) * 100
-      if (!uniqueMap.has(roundedTimestamp) || uniqueMap.get(roundedTimestamp)!.timestamp < point.timestamp) {
-        uniqueMap.set(roundedTimestamp, point)
-      }
-    })
-    
-    return Array.from(uniqueMap.values()).sort((a, b) => a.timestamp - b.timestamp)
-  }, [])
+    const map = new Map<number, DataPoint>()
+
+    const upsert = (point: DataPoint) => {
+      const alignedTimestamp = alignToSecond(point.timestamp)
+      map.set(alignedTimestamp, {
+        ...point,
+        timestamp: alignedTimestamp
+      })
+    }
+
+    existing.forEach(upsert)
+    incoming.forEach(upsert)
+
+    return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp)
+  }, [alignToSecond])
   
   useEffect(() => {
-    if (intervalRef.current) {
+    if (primaryAlignTimeoutRef.current !== undefined) {
+      clearTimeout(primaryAlignTimeoutRef.current)
+      primaryAlignTimeoutRef.current = undefined
+    }
+    if (intervalRef.current !== undefined) {
       clearInterval(intervalRef.current)
+      intervalRef.current = undefined
     }
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current)
     }
-    if (retroIntervalRef.current) {
+    if (retroAlignTimeoutRef.current !== undefined) {
+      clearTimeout(retroAlignTimeoutRef.current)
+      retroAlignTimeoutRef.current = undefined
+    }
+    if (retroIntervalRef.current !== undefined) {
       clearInterval(retroIntervalRef.current)
+      retroIntervalRef.current = undefined
     }
     
     historicalDataLoadedRef.current = false
@@ -64,18 +83,22 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     setError(null)
     const maxPoints = timeRange.seconds
     setIsLoading(true)
-    
+
     const fetchRealtimeData = async (lookbackSeconds?: number) => {
       try {
         const newPoint = useRealData
           ? await api.getRealtimeData(lookbackSeconds)
           : await api.getDemoRealtimeData()
         const pointWithTotal = calculateTotal(newPoint)
+        const alignedPoint: DataPoint = {
+          ...pointWithTotal,
+          timestamp: alignToSecond(pointWithTotal.timestamp)
+        }
         
         setDataPoints(prev => {
-          const updated = mergeAndSortDataPoints(prev, [pointWithTotal])
+          const updated = mergeAndSortDataPoints(prev, [alignedPoint])
           const sliced = updated.slice(-maxPoints)
-          console.log(`[useRealEnergyData] Added realtime point at ${new Date(pointWithTotal.timestamp).toLocaleTimeString()}, total points: ${sliced.length}`)
+          console.log(`[useRealEnergyData] Added realtime point at ${new Date(alignedPoint.timestamp).toLocaleTimeString()}, total points: ${sliced.length}`)
           return sliced
         })
 
@@ -92,27 +115,18 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
             const parsedDefault = typeof rawDefault === 'number' && Number.isFinite(rawDefault)
               ? Math.max(0, rawDefault)
               : 0
-            const delayChanged = parsedDefault !== retroCorrectionSecondsRef.current
+            const previousLookback = retroCorrectionSecondsRef.current
+            const lookbackChanged = parsedDefault !== previousLookback
             retroCorrectionSecondsRef.current = parsedDefault
 
             if (parsedDefault <= 0 || isPaused) {
-              if (retroIntervalRef.current) {
-                clearInterval(retroIntervalRef.current)
-                retroIntervalRef.current = undefined
-              }
-            } else if (parsedDefault > 0) {
-              if (delayChanged || !retroIntervalRef.current) {
-                if (retroIntervalRef.current) {
-                  clearInterval(retroIntervalRef.current)
-                }
-                retroIntervalRef.current = window.setInterval(() => {
-                  void fetchRealtimeData(parsedDefault)
-                }, timeRange.updateInterval)
-
-                if (delayChanged) {
-                  void fetchRealtimeData(parsedDefault)
-                }
-              }
+              stopRetroPolling()
+            } else if (
+              lookbackChanged ||
+              retroIntervalRef.current === undefined ||
+              retroAlignTimeoutRef.current === undefined
+            ) {
+              startRetroPolling()
             }
           }
         }
@@ -134,17 +148,109 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
         console.error(`[useRealEnergyData] Error fetching ${useRealData ? 'real-time' : 'demo'} data:`, err)
       }
     }
-    
+    function getAlignedDelay(intervalMs: number): number {
+      const now = Date.now()
+      const next = Math.floor(now / intervalMs) * intervalMs + intervalMs
+      const delay = next - now
+      return delay === intervalMs ? 0 : delay
+    }
+
+    function stopPrimaryPolling() {
+      if (primaryAlignTimeoutRef.current !== undefined) {
+        clearTimeout(primaryAlignTimeoutRef.current)
+        primaryAlignTimeoutRef.current = undefined
+      }
+      if (intervalRef.current !== undefined) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = undefined
+      }
+    }
+
+    function startPrimaryPolling() {
+      if (isPaused) {
+        stopPrimaryPolling()
+        return
+      }
+
+      const intervalMs = timeRange.updateInterval
+      const delay = getAlignedDelay(intervalMs)
+
+      stopPrimaryPolling()
+
+      const run = () => {
+        if (isPaused) {
+          stopPrimaryPolling()
+          return
+        }
+        void fetchRealtimeData()
+      }
+
+      primaryAlignTimeoutRef.current = window.setTimeout(() => {
+        run()
+        intervalRef.current = window.setInterval(run, intervalMs)
+      }, delay)
+    }
+
+    function stopRetroPolling() {
+      if (retroAlignTimeoutRef.current !== undefined) {
+        clearTimeout(retroAlignTimeoutRef.current)
+        retroAlignTimeoutRef.current = undefined
+      }
+      if (retroIntervalRef.current !== undefined) {
+        clearInterval(retroIntervalRef.current)
+        retroIntervalRef.current = undefined
+      }
+    }
+
+    function startRetroPolling() {
+      if (!useRealData || isPaused) {
+        stopRetroPolling()
+        return
+      }
+
+      const lookback = retroCorrectionSecondsRef.current
+      if (!lookback || lookback <= 0) {
+        stopRetroPolling()
+        return
+      }
+
+      const intervalMs = timeRange.updateInterval
+      const delay = getAlignedDelay(intervalMs)
+
+      stopRetroPolling()
+
+      const run = () => {
+        if (!useRealData || isPaused) {
+          stopRetroPolling()
+          return
+        }
+        const currentLookback = retroCorrectionSecondsRef.current
+        if (!currentLookback || currentLookback <= 0) {
+          stopRetroPolling()
+          return
+        }
+        void fetchRealtimeData(currentLookback)
+      }
+
+      retroAlignTimeoutRef.current = window.setTimeout(() => {
+        run()
+        retroIntervalRef.current = window.setInterval(run, intervalMs)
+      }, delay)
+    }
+
     const startRealtimePolling = () => {
       if (!isPaused) {
-        intervalRef.current = window.setInterval(() => {
-          void fetchRealtimeData()
-        }, timeRange.updateInterval)
-      } else {
-        if (retroIntervalRef.current) {
-          clearInterval(retroIntervalRef.current)
-          retroIntervalRef.current = undefined
+        if (scrollIntervalRef.current) {
+          clearInterval(scrollIntervalRef.current)
+          scrollIntervalRef.current = undefined
         }
+        startPrimaryPolling()
+        if (retroCorrectionSecondsRef.current > 0) {
+          startRetroPolling()
+        }
+      } else {
+        stopPrimaryPolling()
+        stopRetroPolling()
         scrollIntervalRef.current = window.setInterval(() => {
           const now = Date.now()
           setDataPoints(prev => {
@@ -207,17 +313,14 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     return () => {
       isLoadingHistoricalRef.current = false
       historicalDataLoadedRef.current = false
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      stopPrimaryPolling()
+      stopRetroPolling()
       if (scrollIntervalRef.current) {
         clearInterval(scrollIntervalRef.current)
-      }
-      if (retroIntervalRef.current) {
-        clearInterval(retroIntervalRef.current)
+        scrollIntervalRef.current = undefined
       }
     }
-  }, [timeRange, mode, isPaused, calculateTotal, mergeAndSortDataPoints])
+  }, [timeRange, mode, isPaused, calculateTotal, mergeAndSortDataPoints, alignToSecond])
   
   return { dataPoints, error, isLoading }
 }
