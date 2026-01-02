@@ -7,9 +7,16 @@ interface EnergyChartProps {
   devices: Device[]
   height?: number
   retroLookbackSeconds?: number
+  showRetroLookbackLine?: boolean
 }
 
-export function EnergyChart({ data, devices, height = 400, retroLookbackSeconds }: EnergyChartProps) {
+export function EnergyChart({
+  data,
+  devices,
+  height = 400,
+  retroLookbackSeconds,
+  showRetroLookbackLine = true,
+}: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
@@ -77,12 +84,13 @@ export function EnergyChart({ data, devices, height = 400, retroLookbackSeconds 
     const newestTimestamp = data.length > 0 ? Math.max(data[data.length - 1].timestamp, now) : now
 
     const latestLookback = data.length > 0 ? data[data.length - 1].lookbackSeconds : undefined
-    const lookbackSecondsValue =
-      typeof retroLookbackSeconds === 'number' && Number.isFinite(retroLookbackSeconds)
+    const lookbackSecondsValue = showRetroLookbackLine
+      ? typeof retroLookbackSeconds === 'number' && Number.isFinite(retroLookbackSeconds)
         ? retroLookbackSeconds
         : typeof latestLookback === 'number' && Number.isFinite(latestLookback)
           ? latestLookback
           : 0
+      : 0
     
     const xScale = d3.scaleLinear()
       .domain([oldestTimestamp, newestTimestamp])
@@ -386,7 +394,7 @@ export function EnergyChart({ data, devices, height = 400, retroLookbackSeconds 
         updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
       }
     }
-  }, [data, devices, height, retroLookbackSeconds])
+  }, [data, devices, height, retroLookbackSeconds, showRetroLookbackLine])
   
   return (
     <div ref={containerRef} className="w-full relative">

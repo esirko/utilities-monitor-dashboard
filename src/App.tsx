@@ -45,6 +45,7 @@ function App() {
   const [dataMode, setDataMode] = useState<DataMode>('demo')
   const [selectedRange, setSelectedRange] = useState<keyof typeof TIME_RANGES>('1m')
   const timeRange = TIME_RANGES[selectedRange]
+  const retroLookbackEnabled = selectedRange === '1m'
   const [paneVisibility, setPaneVisibility] = useState<Record<PaneKey, boolean>>({
     electricity: true,
     gas: true,
@@ -132,7 +133,7 @@ function App() {
     timeRange,
     energyMode,
     false,
-    retroLookbackSeconds
+    retroLookbackEnabled ? retroLookbackSeconds : 0
   )
   
   useEffect(() => {
@@ -532,7 +533,8 @@ function App() {
                   data={dataPoints}
                   devices={devices}
                   height={400}
-                  retroLookbackSeconds={retroLookbackSeconds}
+                  retroLookbackSeconds={retroLookbackEnabled ? retroLookbackSeconds : undefined}
+                  showRetroLookbackLine={retroLookbackEnabled}
                 />
                 {isLoadingEnergyData && dataPoints.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
@@ -559,21 +561,23 @@ function App() {
                     ))}
                   </TabsList>
                 </Tabs>
-                <div className="flex items-center gap-2 text-xs sm:text-sm">
-                  <span className="uppercase tracking-wider text-muted-foreground hidden sm:inline">Retro Lookback</span>
-                  <Select value={String(retroLookbackSeconds)} onValueChange={handleRetroLookbackChange}>
-                    <SelectTrigger className="w-[100px] sm:w-[120px] text-xs sm:text-sm">
-                      <SelectValue placeholder="0" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {Array.from({ length: 11 }, (_, index) => index).map((seconds) => (
-                        <SelectItem key={seconds} value={String(seconds)}>
-                          {seconds} sec{seconds === 1 ? '' : 's'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {retroLookbackEnabled && (
+                  <div className="flex items-center gap-2 text-xs sm:text-sm">
+                    <span className="uppercase tracking-wider text-muted-foreground hidden sm:inline">Retro Lookback</span>
+                    <Select value={String(retroLookbackSeconds)} onValueChange={handleRetroLookbackChange}>
+                      <SelectTrigger className="w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                        <SelectValue placeholder="0" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {Array.from({ length: 11 }, (_, index) => index).map((seconds) => (
+                          <SelectItem key={seconds} value={String(seconds)}>
+                            {seconds} sec{seconds === 1 ? '' : 's'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
           </Card>
