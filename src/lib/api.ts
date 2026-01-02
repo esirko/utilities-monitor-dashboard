@@ -7,6 +7,8 @@ export interface StreamInfo {
   rtsp?: string | null
   mjpeg?: string | null
   restreamAvailable?: boolean
+  selectionBoxes?: StreamSelection[]
+  selectionConfigured?: boolean
 }
 
 export type StreamSelection = {
@@ -14,6 +16,11 @@ export type StreamSelection = {
   y: number
   width: number
   height: number
+}
+
+export type StreamSelectionResponse = {
+  boxes: StreamSelection[]
+  configured: boolean
 }
 
 export class ApiError extends Error {
@@ -44,18 +51,50 @@ function toAbsoluteUrl(path?: string | null): string | undefined {
   return `${base}${normalised}`
 }
 
+function clampUnit(value: any): number {
+  const num = Number(value)
+  if (!Number.isFinite(num)) {
+    return 0
+  }
+  if (num < 0) return 0
+  if (num > 1) return 1
+  return num
+}
+
+function normaliseSelectionBoxes(raw: any): StreamSelection[] {
+  if (!Array.isArray(raw)) return []
+
+  const boxes: StreamSelection[] = []
+  for (let i = 0; i < Math.min(raw.length, 2); i++) {
+    const item = raw[i] ?? {}
+    boxes.push({
+      x: clampUnit(item.x),
+      y: clampUnit(item.y),
+      width: clampUnit(item.width),
+      height: clampUnit(item.height),
+    })
+  }
+  return boxes
+}
+
 function normaliseStreamInfo(raw: any): StreamInfo | undefined {
   if (!raw) return undefined
   const rtsp = raw.rtsp ?? raw.rtspUrl ?? raw.url ?? null
   const mjpeg = toAbsoluteUrl(raw.mjpeg ?? raw.restream ?? raw.mjpegUrl ?? null)
   const restreamAvailable = raw.restreamAvailable ?? Boolean(raw.mjpeg ?? raw.restream)
-  if (!rtsp && !mjpeg) {
+  const selectionBoxes = normaliseSelectionBoxes(raw.selectionBoxes ?? raw.selections)
+  const selectionConfigured = typeof raw.selectionConfigured === 'boolean'
+    ? raw.selectionConfigured
+    : selectionBoxes.some(box => box.width > 0 && box.height > 0)
+  if (!rtsp && !mjpeg && !selectionBoxes.length) {
     return undefined
   }
   return {
     rtsp,
     mjpeg,
-    restreamAvailable
+    restreamAvailable,
+    selectionBoxes,
+    selectionConfigured
   }
 }
 
@@ -362,7 +401,26 @@ export const api = {
     }
   },
 
-  async setStreamSelection(streamName: 'gas' | 'water', selection: StreamSelection | null): Promise<void> {
+  async getStreamSelections(streamName: 'gas' | 'water'): Promise<StreamSelectionResponse> {
+    const response = await fetch(`${API_URL}/api/streams/${streamName}/selection`)
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Failed to load stream selections', response.status, data)
+    }
+
+    const boxes = normaliseSelectionBoxes(data.boxes)
+    const configured = typeof data.configured === 'boolean'
+      ? data.configured
+      : boxes.some(box => box.width > 0 && box.height > 0)
+
+    return {
+      boxes,
+      configured,
+    }
+  },
+
+  async setStreamSelections(streamName: 'gas' | 'water', boxes: StreamSelection[]): Promise<void> {
     try {
       const token = localStorage.getItem('auth_token')
       const headers: HeadersInit = {
@@ -375,18 +433,46 @@ export const api = {
       const response = await fetch(`${API_URL}/api/streams/${streamName}/selection`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ selection })
+        body: JSON.stringify({ boxes })
       })
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
-        throw new ApiError(data.message || 'Failed to update stream selection', response.status, data)
+        throw new ApiError(data.message || 'Failed to update stream selections', response.status, data)
       }
     } catch (error) {
       if (error instanceof ApiError) {
         throw error
       }
-      throw new ApiError('Failed to contact server for stream selection update', undefined, error)
+      throw new ApiError('Failed to contact server for stream selections update', undefined, error)
+    }
+  },
+
+  async resetStreamSelections(streamName: 'gas' | 'water'): Promise<void> {
+    try {
+      const token = localStorage.getItem('auth_token')
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      }
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`${API_URL}/api/streams/${streamName}/selection`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ reset: true })
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new ApiError(data.message || 'Failed to reset stream selections', response.status, data)
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error
+      }
+      throw new ApiError('Failed to contact server for stream selection reset', undefined, error)
     }
   },
 }

@@ -32,7 +32,7 @@ from backend.config import (
 )
 from backend.demo import demo_bp
 from backend.emporia import emporia_bp, get_authenticated_username, is_authenticated
-from backend.streams import analyze_frame, streams_bp
+from backend.streams import analyze_frame, get_stream_selections, streams_bp
 
 
 app = Flask(__name__)
@@ -83,13 +83,30 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+def _augment_stream_payload(name: str, url: str):
+    info = build_stream_info(name, url)
+    selections = [
+        {
+            "x": box.x,
+            "y": box.y,
+            "width": box.width,
+            "height": box.height,
+        }
+        for box in get_stream_selections(name)
+    ]
+    configured = any(box["width"] > 0 and box["height"] > 0 for box in selections)
+    info["selectionBoxes"] = selections
+    info["selectionConfigured"] = configured
+    return info
+
+
 @app.get("/api/streams")
 def get_stream_urls():
     """Expose configured utility stream metadata."""
     return jsonify(
         {
-            "gas": build_stream_info("gas", GAS_RTSP_URL),
-            "water": build_stream_info("water", WATER_RTSP_URL),
+            "gas": _augment_stream_payload("gas", GAS_RTSP_URL),
+            "water": _augment_stream_payload("water", WATER_RTSP_URL),
         }
     )
 
@@ -130,8 +147,8 @@ def root():
         "systemName": SYSTEM_NAME,
         "gasStreamUrl": GAS_RTSP_URL or None,
         "waterStreamUrl": WATER_RTSP_URL or None,
-        "gasStream": build_stream_info("gas", GAS_RTSP_URL),
-        "waterStream": build_stream_info("water", WATER_RTSP_URL),
+        "gasStream": _augment_stream_payload("gas", GAS_RTSP_URL),
+        "waterStream": _augment_stream_payload("water", WATER_RTSP_URL),
         "retroactiveCorrectionSeconds": RETROACTIVE_CORRECTION_SECONDS,
     }
 

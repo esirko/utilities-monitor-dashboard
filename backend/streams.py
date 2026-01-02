@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import re
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -30,15 +30,42 @@ class SelectionRect:
     height: float
 
 
-_stream_selections: Dict[str, Optional[SelectionRect]] = {stream: None for stream in VALID_STREAMS}
+def _zero_rect() -> SelectionRect:
+    return SelectionRect(x=0.0, y=0.0, width=0.0, height=0.0)
+
+
+def _normalise_boxes(boxes: Optional[Sequence[SelectionRect] | Sequence[Optional[SelectionRect]]]) -> List[SelectionRect]:
+    if not boxes:
+        return [_zero_rect(), _zero_rect()]
+    normalised: List[SelectionRect] = []
+    for box in boxes:
+        if box is None:
+            normalised.append(_zero_rect())
+        else:
+            normalised.append(
+                SelectionRect(
+                    x=float(box.x),
+                    y=float(box.y),
+                    width=float(box.width),
+                    height=float(box.height),
+                )
+            )
+    while len(normalised) < 2:
+        normalised.append(_zero_rect())
+    return normalised[:2]
+
+
+_stream_selections: Dict[str, List[SelectionRect]] = {
+    stream: _normalise_boxes(None) for stream in VALID_STREAMS
+}
 _analysis_results: Dict[str, Dict[str, object]] = {stream: {} for stream in VALID_STREAMS}
 
 streams_bp = Blueprint("streams", __name__, url_prefix="/api/streams")
 
 
-def _parse_selection(payload: dict | None) -> Optional[SelectionRect]:
+def _parse_box(payload: dict | None) -> SelectionRect:
     if not payload:
-        return None
+        return _zero_rect()
 
     required = {"x", "y", "width", "height"}
     if not required.issubset(payload):
@@ -59,6 +86,33 @@ def _parse_selection(payload: dict | None) -> Optional[SelectionRect]:
     return SelectionRect(x=x, y=y, width=width, height=height)
 
 
+def _parse_boxes(payload: object) -> List[SelectionRect]:
+    if payload is None:
+        return _normalise_boxes(None)
+
+    if not isinstance(payload, list):
+        raise ValueError("Selection payload must be an array of selection boxes")
+
+    if len(payload) != 2:
+        raise ValueError("Selection payload must include exactly two selection boxes")
+
+    boxes: List[SelectionRect] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError("Selection boxes must be objects with coordinates")
+        boxes.append(_parse_box(item))
+    return boxes
+
+
+def _serialise_box(box: SelectionRect) -> dict:
+    return {
+        "x": box.x,
+        "y": box.y,
+        "width": box.width,
+        "height": box.height,
+    }
+
+
 @streams_bp.post("/<stream_name>/selection")
 def update_selection(stream_name: str):
     stream = stream_name.lower()
@@ -66,30 +120,45 @@ def update_selection(stream_name: str):
         abort(404, description="Unknown stream")
 
     data = request.get_json(silent=True) or {}
+    if data.get("reset"):
+        boxes = _normalise_boxes(None)
+        _stream_selections[stream] = boxes
+        return jsonify({
+            "success": True,
+            "boxes": [_serialise_box(box) for box in boxes],
+        })
+
     try:
-        selection = _parse_selection(data.get("selection"))
+        boxes = _parse_boxes(data.get("boxes"))
     except ValueError as exc:
         abort(400, description=str(exc))
-
-    _stream_selections[stream] = selection
-
-    response = None
-    if selection is not None:
-        response = {
-            "x": selection.x,
-            "y": selection.y,
-            "width": selection.width,
-            "height": selection.height,
-        }
+    _stream_selections[stream] = boxes
 
     return jsonify({
         "success": True,
-        "selection": response,
+        "boxes": [_serialise_box(box) for box in boxes],
     })
 
 
-def get_stream_selection(stream_name: str) -> Optional[SelectionRect]:
-    return _stream_selections.get(stream_name)
+@streams_bp.get("/<stream_name>/selection")
+def get_selection(stream_name: str):
+    stream = stream_name.lower()
+    if stream not in VALID_STREAMS:
+        abort(404, description="Unknown stream")
+
+    boxes = _stream_selections.get(stream) or _normalise_boxes(None)
+    response = [_serialise_box(box) for box in boxes]
+    configured = any(box.width > 0 and box.height > 0 for box in boxes)
+
+    return jsonify({
+        "success": True,
+        "boxes": response,
+        "configured": configured,
+    })
+
+
+def get_stream_selections(stream_name: str) -> List[SelectionRect]:
+    return list(_stream_selections.get(stream_name, _normalise_boxes(None)))
 
 
 def analyze_frame(stream_name: str, frame) -> None:  # pragma: no cover - placeholder
@@ -101,11 +170,14 @@ def analyze_frame(stream_name: str, frame) -> None:  # pragma: no cover - placeh
     analytics as requirements evolve.
     """
 
-    selection = _stream_selections.get(stream_name)
-    if selection is None:
+    selections = _stream_selections.get(stream_name, [])
+    if not selections:
         return
 
-    _analyze_selected_region(stream_name, frame, selection)
+    for selection in selections:
+        if selection.width <= 0 or selection.height <= 0:
+            continue
+        _analyze_selected_region(stream_name, frame, selection)
 
 
 def _analyze_selected_region(stream_name: str, frame, selection: SelectionRect) -> None:  # pragma: no cover - placeholder
@@ -242,6 +314,7 @@ def _prepare_frame_for_ocr(frame) -> np.ndarray:
 __all__ = [
     "streams_bp",
     "update_selection",
-    "get_stream_selection",
+    "get_stream_selections",
+    "get_selection",
     "analyze_frame",
 ]

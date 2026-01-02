@@ -4,7 +4,6 @@ import {
   useEffect,
   ReactNode,
   ComponentProps,
-  useId,
   useCallback,
   useRef,
 } from 'react'
@@ -19,7 +18,6 @@ import { DeviceList } from '@/components/DeviceList'
 import { LoginForm } from '@/components/LoginForm'
 import { Clock } from '@/components/Clock'
 import { UtilityStream, SelectionRect } from '@/components/UtilityStream'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
@@ -30,6 +28,16 @@ type DataMode = 'demo' | 'real'
 
 type PaneKey = 'electricity' | 'gas' | 'water'
 type SplitOrientation = 'horizontal' | 'vertical'
+
+const ZERO_SELECTION_BOXES: SelectionRect[] = [
+  { x: 0, y: 0, width: 0, height: 0 },
+  { x: 0, y: 0, width: 0, height: 0 },
+]
+
+const boxesConfigured = (boxes: SelectionRect[] | undefined): boolean =>
+  Array.isArray(boxes) && boxes.some(box => box.width > 0 && box.height > 0)
+
+const cloneZeroBoxes = (): SelectionRect[] => ZERO_SELECTION_BOXES.map(box => ({ ...box }))
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -46,56 +54,38 @@ function App() {
   const [gasStream, setGasStream] = useState<StreamInfo>({})
   const [waterStream, setWaterStream] = useState<StreamInfo>({})
   const [waterInvertZoom, setWaterInvertZoom] = useState<boolean>(true)
-  const waterInvertZoomId = useId()
-  const selectionTimersRef = useRef<Record<'gas' | 'water', ReturnType<typeof setTimeout> | null>>({
-    gas: null,
-    water: null,
-  })
-  const SELECTION_DEBOUNCE_MS = 300
   const retroLookbackInitializedRef = useRef(false)
 
-  const sendSelection = useCallback(
-    (streamName: 'gas' | 'water', selection: SelectionRect | null) => {
-      const timers = selectionTimersRef.current
-      const existing = timers[streamName]
-      if (existing) {
-        clearTimeout(existing)
-      }
-
-      timers[streamName] = window.setTimeout(() => {
-        void api.setStreamSelection(streamName, selection).catch(error => {
-          console.error(`[App] Failed to update ${streamName} selection:`, error)
-        })
-        timers[streamName] = null
-      }, SELECTION_DEBOUNCE_MS)
-    },
-    [SELECTION_DEBOUNCE_MS]
-  )
-
-  useEffect(() => {
-    const timers = selectionTimersRef.current
-    return () => {
-      (Object.values(timers) as Array<ReturnType<typeof setTimeout> | null>).forEach(timer => {
-        if (timer) {
-          clearTimeout(timer)
-        }
-      })
+  const updateStreamSelectionState = useCallback((streamName: 'gas' | 'water', boxes: SelectionRect[], configured?: boolean) => {
+    const resolved = configured ?? boxesConfigured(boxes)
+    if (streamName === 'gas') {
+      setGasStream(prev => ({ ...prev, selectionBoxes: boxes, selectionConfigured: resolved }))
+    } else {
+      setWaterStream(prev => ({ ...prev, selectionBoxes: boxes, selectionConfigured: resolved }))
     }
   }, [])
 
-  const handleGasSelectionChange = useCallback(
-    (selection: SelectionRect | null) => {
-      sendSelection('gas', selection)
-    },
-    [sendSelection]
-  )
+  const handleConfirmSelectionSet = useCallback(async (streamName: 'gas' | 'water', boxes: SelectionRect[]) => {
+    await api.setStreamSelections(streamName, boxes)
+    try {
+      const { boxes: persisted, configured } = await api.getStreamSelections(streamName)
+      updateStreamSelectionState(streamName, persisted, configured)
+    } catch (error) {
+      console.error(`[App] Failed to refresh ${streamName} selections after confirmation:`, error)
+      updateStreamSelectionState(streamName, boxes)
+    }
+  }, [updateStreamSelectionState])
 
-  const handleWaterSelectionChange = useCallback(
-    (selection: SelectionRect | null) => {
-      sendSelection('water', selection)
-    },
-    [sendSelection]
-  )
+  const handleResetSelectionSet = useCallback(async (streamName: 'gas' | 'water') => {
+    await api.resetStreamSelections(streamName)
+    try {
+      const { boxes: persisted, configured } = await api.getStreamSelections(streamName)
+      updateStreamSelectionState(streamName, persisted, configured)
+    } catch (error) {
+      console.error(`[App] Failed to refresh ${streamName} selections after reset:`, error)
+      updateStreamSelectionState(streamName, cloneZeroBoxes(), false)
+    }
+  }, [updateStreamSelectionState])
   
   useEffect(() => {
     const resizeObserverErrorHandler = (e: ErrorEvent) => {
@@ -415,11 +405,13 @@ function App() {
             restreamAvailable={stream?.restreamAvailable}
             title={`${title} stream`}
             note={stream?.mjpeg
-              ? 'Drag on the video to select a region to zoom. Double-click or use reset to clear the selection.'
+              ? 'Draw two regions on the video, then confirm to save. Double-click the active region to clear it.'
               : (!stream?.restreamAvailable
                 ? 'Backend restreaming is disabled. Install the restream dependencies or expose an MJPEG/WebRTC feed for browser playback.'
                 : undefined)
             }
+            savedSelections={stream?.selectionBoxes}
+            selectionConfigured={stream?.selectionConfigured}
             {...options?.streamProps}
           />
           {options?.extrasBelowStream}
@@ -444,7 +436,10 @@ function App() {
     undefined,
     gasStream,
     {
-      streamProps: { onSelectionChange: handleGasSelectionChange }
+      streamProps: {
+        onConfirmSelections: boxes => handleConfirmSelectionSet('gas', boxes),
+        onResetSelections: () => handleResetSelectionSet('gas'),
+      }
     }
   )
 
@@ -455,24 +450,12 @@ function App() {
     waterStream,
     {
       streamProps: {
-        invertZoomPreview: waterInvertZoom,
-        onSelectionChange: handleWaterSelectionChange,
+        onConfirmSelections: boxes => handleConfirmSelectionSet('water', boxes),
+        onResetSelections: () => handleResetSelectionSet('water'),
+        secondaryPreviewFlipped: waterInvertZoom,
+        onSecondaryPreviewFlipToggle: value => setWaterInvertZoom(value),
       },
-      extrasBelowStream: (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Checkbox
-            id={waterInvertZoomId}
-            checked={waterInvertZoom}
-            onCheckedChange={checked => setWaterInvertZoom(checked === true)}
-          />
-          <label
-            htmlFor={waterInvertZoomId}
-            className="cursor-pointer select-none text-muted-foreground"
-          >
-            Render zoom preview upside-down
-          </label>
-        </div>
-      )
+      extrasBelowStream: null
     }
   )
 
