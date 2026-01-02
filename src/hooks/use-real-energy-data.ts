@@ -3,7 +3,12 @@ import { DataPoint, TimeRange } from '@/lib/types'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 
-export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 'off' = 'real', isPaused: boolean = false) {
+export function useRealEnergyData(
+  timeRange: TimeRange,
+  mode: 'real' | 'demo' | 'off' = 'real',
+  isPaused: boolean = false,
+  retroLookbackOverride?: number
+) {
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -84,6 +89,15 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     const maxPoints = timeRange.seconds
     setIsLoading(true)
 
+    const forcedRetroLookback =
+      typeof retroLookbackOverride === 'number' && Number.isFinite(retroLookbackOverride)
+        ? Math.max(0, Math.min(10, Math.round(retroLookbackOverride)))
+        : null
+
+    if (forcedRetroLookback !== null) {
+      retroCorrectionSecondsRef.current = forcedRetroLookback
+    }
+
     const fetchRealtimeData = async (lookbackSeconds?: number) => {
       try {
         const newPoint = useRealData
@@ -115,11 +129,13 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
             const parsedDefault = typeof rawDefault === 'number' && Number.isFinite(rawDefault)
               ? Math.max(0, rawDefault)
               : 0
+            const desiredLookback = forcedRetroLookback !== null ? forcedRetroLookback : parsedDefault
+            const normalizedLookback = Math.max(0, Math.min(10, desiredLookback))
             const previousLookback = retroCorrectionSecondsRef.current
-            const lookbackChanged = parsedDefault !== previousLookback
-            retroCorrectionSecondsRef.current = parsedDefault
+            const lookbackChanged = normalizedLookback !== previousLookback
+            retroCorrectionSecondsRef.current = normalizedLookback
 
-            if (parsedDefault <= 0 || isPaused) {
+            if (normalizedLookback <= 0 || isPaused) {
               stopRetroPolling()
             } else if (
               lookbackChanged ||
@@ -320,7 +336,7 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
         scrollIntervalRef.current = undefined
       }
     }
-  }, [timeRange, mode, isPaused, calculateTotal, mergeAndSortDataPoints, alignToSecond])
+  }, [timeRange, mode, isPaused, retroLookbackOverride, calculateTotal, mergeAndSortDataPoints, alignToSecond])
   
   return { dataPoints, error, isLoading }
 }

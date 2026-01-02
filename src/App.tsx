@@ -24,6 +24,7 @@ import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
 import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type DataMode = 'demo' | 'real'
 
@@ -51,6 +52,7 @@ function App() {
     water: null,
   })
   const SELECTION_DEBOUNCE_MS = 300
+  const retroLookbackInitializedRef = useRef(false)
 
   const sendSelection = useCallback(
     (streamName: 'gas' | 'water', selection: SelectionRect | null) => {
@@ -121,10 +123,27 @@ function App() {
         ? 'demo'
         : 'off'
 
-  const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(timeRange, energyMode, false)
   const [backendDevices, setBackendDevices] = useState<any[]>([])
   const [electricityRate, setElectricityRate] = useState<number>(0.314555)
   const [systemName, setSystemName] = useState<string>('Not connected')
+  const [retroLookbackSeconds, setRetroLookbackSeconds] = useState<number>(5)
+  const clampRetroLookback = useCallback((value: number) => {
+    if (!Number.isFinite(value)) return 0
+    return Math.min(10, Math.max(0, Math.round(value)))
+  }, [])
+
+  const handleRetroLookbackChange = useCallback((value: string) => {
+    retroLookbackInitializedRef.current = true
+    const parsed = Number(value)
+    setRetroLookbackSeconds(clampRetroLookback(Number.isFinite(parsed) ? parsed : 0))
+  }, [clampRetroLookback])
+
+  const { dataPoints, error: energyDataError, isLoading: isLoadingEnergyData } = useRealEnergyData(
+    timeRange,
+    energyMode,
+    false,
+    retroLookbackSeconds
+  )
   
   useEffect(() => {
     console.log(`[App] Data mode: ${dataMode}, Data points: ${dataPoints.length}, Range: ${selectedRange}`)
@@ -157,6 +176,13 @@ function App() {
         }
         if (config.waterStream) {
           setWaterStream(config.waterStream)
+        }
+        if (
+          !retroLookbackInitializedRef.current &&
+          typeof config.retroactiveCorrectionSeconds === 'number'
+        ) {
+          setRetroLookbackSeconds(clampRetroLookback(config.retroactiveCorrectionSeconds))
+          retroLookbackInitializedRef.current = true
         }
       } catch (err) {
         console.error('Failed to fetch initial config from backend:', err)
@@ -219,6 +245,13 @@ function App() {
         }
         if (config.waterStream) {
           setWaterStream(config.waterStream)
+        }
+        if (
+          !retroLookbackInitializedRef.current &&
+          typeof config.retroactiveCorrectionSeconds === 'number'
+        ) {
+          setRetroLookbackSeconds(clampRetroLookback(config.retroactiveCorrectionSeconds))
+          retroLookbackInitializedRef.current = true
         }
       } catch (err) {
         console.error('Failed to fetch config from backend:', err)
@@ -528,7 +561,7 @@ function App() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-start">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <Tabs value={selectedRange} onValueChange={(v) => setSelectedRange(v as keyof typeof TIME_RANGES)}>
                   <TabsList className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-0 sm:w-auto">
                     {Object.entries(TIME_RANGES).map(([key, range]) => (
@@ -538,6 +571,21 @@ function App() {
                     ))}
                   </TabsList>
                 </Tabs>
+                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                  <span className="uppercase tracking-wider text-muted-foreground hidden sm:inline">Retro Lookback</span>
+                  <Select value={String(retroLookbackSeconds)} onValueChange={handleRetroLookbackChange}>
+                    <SelectTrigger className="w-[100px] sm:w-[120px] text-xs sm:text-sm">
+                      <SelectValue placeholder="0" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {Array.from({ length: 11 }, (_, index) => index).map((seconds) => (
+                        <SelectItem key={seconds} value={String(seconds)}>
+                          {seconds} sec{seconds === 1 ? '' : 's'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </Card>
