@@ -12,6 +12,7 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
   const lastToastRef = useRef<number>(0)
   const isLoadingHistoricalRef = useRef<boolean>(false)
   const historicalDataLoadedRef = useRef<boolean>(false)
+  const hasRealtimeDataRef = useRef<boolean>(false)
   const useRealData = mode === 'real'
   
   const calculateTotal = useCallback((dataPoint: DataPoint): DataPoint => {
@@ -46,6 +47,7 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     
     historicalDataLoadedRef.current = false
     isLoadingHistoricalRef.current = false
+    hasRealtimeDataRef.current = false
     setDataPoints([])
 
     if (mode === 'off') {
@@ -53,10 +55,9 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
       return () => {}
     }
 
-    setIsLoading(true)
-
     setError(null)
     const maxPoints = timeRange.seconds
+    setIsLoading(true)
     
     const fetchRealtimeData = async () => {
       try {
@@ -72,6 +73,11 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
           return sliced
         })
         
+        if (!hasRealtimeDataRef.current) {
+          hasRealtimeDataRef.current = true
+          setIsLoading(false)
+        }
+
         setError(null)
       } catch (err) {
         if (err instanceof ApiError) {
@@ -108,8 +114,6 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     
     const fetchHistoricalData = async () => {
       isLoadingHistoricalRef.current = true
-      setIsLoading(true)
-      
       try {
         const historical = useRealData
           ? await api.getHistoricalData(timeRange.label)
@@ -125,9 +129,9 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
           })
           
           historicalDataLoadedRef.current = true
-          setIsLoading(false)
-          
-          startRealtimePolling()
+          if (!hasRealtimeDataRef.current) {
+            setIsLoading(false)
+          }
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -145,14 +149,16 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
         console.error(`[useRealEnergyData] Error fetching ${useRealData ? 'real' : 'demo'} historical data:`, err)
         
         historicalDataLoadedRef.current = true
-        setIsLoading(false)
-        
-        startRealtimePolling()
+        if (!hasRealtimeDataRef.current) {
+          setIsLoading(false)
+        }
       } finally {
         isLoadingHistoricalRef.current = false
       }
     }
     
+    void fetchRealtimeData()
+    startRealtimePolling()
     fetchHistoricalData()
     
     return () => {
