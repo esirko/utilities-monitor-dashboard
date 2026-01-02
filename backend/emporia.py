@@ -444,19 +444,13 @@ def get_history():
         start_time = now - datetime.timedelta(seconds=seconds)
         end_time = now
 
-        # Cache device info for verbose logging parity
-        device_info = {}
-        for device in devices:
-            if device.device_gid not in device_info:
-                device_info[device.device_gid] = device
-
         # Accumulate usage values by timestamp (milliseconds)
         aggregated_points: Dict[int, Dict[str, Any]] = {}
 
         def ensure_entry(ts_ms: int) -> Dict[str, Any]:
             entry = aggregated_points.get(ts_ms)
             if entry is None:
-                entry = {"devices": {}, "total": 0.0}
+                entry = {"devices": {}}
                 aggregated_points[ts_ms] = entry
             return entry
 
@@ -468,7 +462,11 @@ def get_history():
 
                 channel_name = (getattr(channel, "name", "") or "").lower()
                 is_total_channel = channel_name == "main" or channel.channel_num in {"1,2,3", "mains"}
-                device_key = str(device.device_gid) if is_total_channel else f"{device.device_gid}-{channel.channel_num}"
+
+                if is_total_channel:
+                    continue
+
+                device_key = f"{device.device_gid}-{channel.channel_num}"
 
                 log_emporia_request(
                     "vue.get_chart_usage",
@@ -516,11 +514,7 @@ def get_history():
                     if not isinstance(entry_devices, dict):
                         entry_devices = {}
                         entry["devices"] = entry_devices
-                    previous_value = float(entry_devices.get(device_key, 0.0))
                     entry_devices[device_key] = watts
-                    if is_total_channel:
-                        current_total = float(entry.get("total", 0.0))
-                        entry["total"] = current_total - previous_value + watts
 
                 if VERBOSE_LOGGING and usage_list:
                     print(
@@ -539,9 +533,7 @@ def get_history():
             devices_rounded = {
                 key: round(float(value), 2) for key, value in devices_data.items()
             }
-            total_watts = float(entry.get("total", 0.0))
-            if total_watts <= 0.0 and devices_rounded:
-                total_watts = sum(devices_rounded.values())
+            total_watts = sum(devices_rounded.values()) if devices_rounded else 0.0
             data_points.append(
                 {
                     "timestamp": ts,
