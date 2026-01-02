@@ -665,11 +665,6 @@ export function UtilityStream({
 						{BOX_META.map((meta, index) => {
 							return (
 								<div key={meta.label} className="space-y-2">
-									<div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-										<span className={`inline-flex items-center rounded-md px-2 py-0.5 ${meta.badge}`}>
-											{meta.label}
-										</span>
-									</div>
 									<div
 										className="relative w-full overflow-hidden rounded-md border border-border/60 bg-black"
 										style={{ aspectRatio: previewAspects[index] }}
