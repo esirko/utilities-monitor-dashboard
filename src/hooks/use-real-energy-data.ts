@@ -152,6 +152,8 @@ export function useRealEnergyData(
         if (err instanceof ApiError) {
           setError(err.message)
           if (useRealData && err.status === 401) {
+            retroCorrectionSecondsRef.current = 0
+            stopRetroPolling()
             const now = Date.now()
             if (now - lastToastRef.current > 10000) {
               toast.error('Authentication expired, attempting to reconnect...')
