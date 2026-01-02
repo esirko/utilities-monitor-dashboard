@@ -4,11 +4,19 @@ import datetime
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence
+import os
 
 import numpy as np
 
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "error")
+
 try:  # pragma: no cover - optional dependency
     import cv2  # type: ignore[import-not-found]
+    try:
+        from cv2 import utils as cv2_utils  # type: ignore[attr-defined]
+        cv2_utils.logging.setLogLevel(cv2_utils.logging.LOG_LEVEL_ERROR)
+    except Exception:  # pragma: no cover - best effort logging suppression
+        pass
 except ImportError:  # pragma: no cover
     cv2 = None
 

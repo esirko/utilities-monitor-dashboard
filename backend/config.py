@@ -5,8 +5,15 @@ import json
 import os
 from typing import Dict, Optional
 
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "error")
+
 try:
     import cv2  # type: ignore[import-not-found]
+    try:
+        from cv2 import utils as cv2_utils  # type: ignore[attr-defined]
+        cv2_utils.logging.setLogLevel(cv2_utils.logging.LOG_LEVEL_ERROR)
+    except Exception:  # pragma: no cover - logging setup best effort
+        pass
 except ImportError:  # pragma: no cover
     cv2 = None
 
