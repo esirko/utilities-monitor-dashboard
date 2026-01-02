@@ -8,6 +8,7 @@ interface EnergyChartProps {
   height?: number
   retroLookbackSeconds?: number
   showRetroLookbackLine?: boolean
+  sampleIntervalMs?: number
 }
 
 export function EnergyChart({
@@ -16,6 +17,7 @@ export function EnergyChart({
   height = 400,
   retroLookbackSeconds,
   showRetroLookbackLine = true,
+  sampleIntervalMs,
 }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -64,9 +66,34 @@ export function EnergyChart({
     }
     
     const deviceIds = data.length > 0 ? Object.keys(data[data.length - 1].devices) : []
-    
-    const expectedInterval = 1000
-    const gapThreshold = expectedInterval * 2
+
+    const baseSampleInterval =
+      typeof sampleIntervalMs === 'number' && Number.isFinite(sampleIntervalMs)
+        ? Math.max(1000, sampleIntervalMs)
+        : 1000
+
+    let adaptiveInterval = baseSampleInterval
+
+    if (data.length > 1) {
+      const intervals: number[] = []
+      for (let i = 1; i < data.length; i++) {
+        const timeDiff = data[i].timestamp - data[i - 1].timestamp
+        if (Number.isFinite(timeDiff) && timeDiff > 0) {
+          intervals.push(timeDiff)
+        }
+      }
+
+      if (intervals.length > 0) {
+        const windowSize = Math.min(intervals.length, 40)
+        const recentSamples = intervals.slice(intervals.length - windowSize).sort((a, b) => a - b)
+        const median = recentSamples[Math.floor(recentSamples.length / 2)]
+        if (Number.isFinite(median) && median > 0) {
+          adaptiveInterval = Math.max(adaptiveInterval, median)
+        }
+      }
+    }
+
+    const gapThreshold = Math.max(adaptiveInterval * 2, 2000)
     
     const gaps: Array<{ start: number; end: number }> = []
     for (let i = 1; i < data.length; i++) {
@@ -394,7 +421,7 @@ export function EnergyChart({
         updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
       }
     }
-  }, [data, devices, height, retroLookbackSeconds, showRetroLookbackLine])
+  }, [data, devices, height, retroLookbackSeconds, showRetroLookbackLine, sampleIntervalMs])
   
   return (
     <div ref={containerRef} className="w-full relative">
