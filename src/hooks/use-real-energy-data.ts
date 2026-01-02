@@ -9,10 +9,12 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const intervalRef = useRef<number | undefined>(undefined)
   const scrollIntervalRef = useRef<number | undefined>(undefined)
+  const retroIntervalRef = useRef<number | undefined>(undefined)
   const lastToastRef = useRef<number>(0)
   const isLoadingHistoricalRef = useRef<boolean>(false)
   const historicalDataLoadedRef = useRef<boolean>(false)
   const hasRealtimeDataRef = useRef<boolean>(false)
+  const retroCorrectionSecondsRef = useRef<number>(0)
   const useRealData = mode === 'real'
   
   const calculateTotal = useCallback((dataPoint: DataPoint): DataPoint => {
@@ -44,10 +46,14 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     if (scrollIntervalRef.current) {
       clearInterval(scrollIntervalRef.current)
     }
+    if (retroIntervalRef.current) {
+      clearInterval(retroIntervalRef.current)
+    }
     
     historicalDataLoadedRef.current = false
     isLoadingHistoricalRef.current = false
     hasRealtimeDataRef.current = false
+    retroCorrectionSecondsRef.current = 0
     setDataPoints([])
 
     if (mode === 'off') {
@@ -59,10 +65,10 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     const maxPoints = timeRange.seconds
     setIsLoading(true)
     
-    const fetchRealtimeData = async () => {
+    const fetchRealtimeData = async (lookbackSeconds?: number) => {
       try {
         const newPoint = useRealData
-          ? await api.getRealtimeData()
+          ? await api.getRealtimeData(lookbackSeconds)
           : await api.getDemoRealtimeData()
         const pointWithTotal = calculateTotal(newPoint)
         
@@ -72,10 +78,43 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
           console.log(`[useRealEnergyData] Added realtime point at ${new Date(pointWithTotal.timestamp).toLocaleTimeString()}, total points: ${sliced.length}`)
           return sliced
         })
-        
-        if (!hasRealtimeDataRef.current) {
-          hasRealtimeDataRef.current = true
-          setIsLoading(false)
+
+        const isPrimaryCall = !lookbackSeconds || lookbackSeconds <= 0
+
+        if (isPrimaryCall) {
+          if (!hasRealtimeDataRef.current) {
+            hasRealtimeDataRef.current = true
+            setIsLoading(false)
+          }
+
+          if (useRealData) {
+            const rawDefault = newPoint.defaultRetroactiveCorrectionSeconds
+            const parsedDefault = typeof rawDefault === 'number' && Number.isFinite(rawDefault)
+              ? Math.max(0, rawDefault)
+              : 0
+            const delayChanged = parsedDefault !== retroCorrectionSecondsRef.current
+            retroCorrectionSecondsRef.current = parsedDefault
+
+            if (parsedDefault <= 0 || isPaused) {
+              if (retroIntervalRef.current) {
+                clearInterval(retroIntervalRef.current)
+                retroIntervalRef.current = undefined
+              }
+            } else if (parsedDefault > 0) {
+              if (delayChanged || !retroIntervalRef.current) {
+                if (retroIntervalRef.current) {
+                  clearInterval(retroIntervalRef.current)
+                }
+                retroIntervalRef.current = window.setInterval(() => {
+                  void fetchRealtimeData(parsedDefault)
+                }, timeRange.updateInterval)
+
+                if (delayChanged) {
+                  void fetchRealtimeData(parsedDefault)
+                }
+              }
+            }
+          }
         }
 
         setError(null)
@@ -99,9 +138,13 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
     const startRealtimePolling = () => {
       if (!isPaused) {
         intervalRef.current = window.setInterval(() => {
-          fetchRealtimeData()
+          void fetchRealtimeData()
         }, timeRange.updateInterval)
       } else {
+        if (retroIntervalRef.current) {
+          clearInterval(retroIntervalRef.current)
+          retroIntervalRef.current = undefined
+        }
         scrollIntervalRef.current = window.setInterval(() => {
           const now = Date.now()
           setDataPoints(prev => {
@@ -169,6 +212,9 @@ export function useRealEnergyData(timeRange: TimeRange, mode: 'real' | 'demo' | 
       }
       if (scrollIntervalRef.current) {
         clearInterval(scrollIntervalRef.current)
+      }
+      if (retroIntervalRef.current) {
+        clearInterval(retroIntervalRef.current)
       }
     }
   }, [timeRange, mode, isPaused, calculateTotal, mergeAndSortDataPoints])

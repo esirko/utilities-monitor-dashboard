@@ -14,6 +14,7 @@ from pyemvue.enums import Scale, Unit
 from backend.config import (
     SECRET_KEY,
     DEVICE_CACHE_TTL,
+    RETROACTIVE_CORRECTION_SECONDS,
     VERBOSE_LOGGING,
     HISTORY_RANGE_MAP,
     get_configured_credentials,
@@ -361,7 +362,17 @@ def get_realtime():
             else:
                 device_info[device.device_gid].channels += device.channels
 
-        instant = datetime.datetime.now(datetime.UTC)
+        lookback_param = request.args.get("lookbackSeconds", default=None)
+        try:
+            lookback_seconds = float(lookback_param) if lookback_param is not None else 0.0
+        except (TypeError, ValueError):
+            lookback_seconds = 0.0
+
+        if lookback_seconds < 0:
+            lookback_seconds = 0.0
+
+        now = datetime.datetime.now(datetime.UTC)
+        instant = now - datetime.timedelta(seconds=lookback_seconds)
         log_emporia_request(
             "vue.get_device_list_usage",
             deviceGids=device_gids,
@@ -410,11 +421,15 @@ def get_realtime():
                             channel_watts = (channel_usage.usage or 0) * 1000
                             devices_data[f"{gid}-{channel_num}"] = round(channel_watts, 2)
 
+        response_timestamp_ms = int(instant.timestamp() * 1000)
+
         return jsonify(
             {
-                "timestamp": int(datetime.datetime.now(datetime.UTC).timestamp() * 1000),
+                "timestamp": response_timestamp_ms,
                 "total": round(total_watts, 2),
                 "devices": devices_data,
+                "lookbackSeconds": lookback_seconds,
+                "defaultRetroactiveCorrectionSeconds": RETROACTIVE_CORRECTION_SECONDS,
             }
         )
 

@@ -137,6 +137,9 @@ SECRET_KEY = get_config_value("SECRET_KEY", "your-secret-key-change-this-in-prod
 ELECTRICITY_RATE = float(get_config_value("ELECTRICITY_RATE", "0.314555") or "0.314555")
 SYSTEM_NAME = get_config_value("SYSTEM_NAME", "Home")
 DEVICE_CACHE_TTL = int(get_config_value("DEVICE_CACHE_TTL", "300") or "300")
+RETROACTIVE_CORRECTION_SECONDS = int(
+    get_config_value("RETROACTIVE_CORRECTION_SECONDS", "5") or "5"
+)
 VERBOSE_LOGGING = (get_config_value("VERBOSE_LOGGING", "false") or "false").lower() == "true"
 GAS_RTSP_URL = get_config_value("GAS_RTSP_URL", "") or ""
 WATER_RTSP_URL = get_config_value("WATER_RTSP_URL", "") or ""
@@ -162,6 +165,7 @@ def log_configuration_snapshot() -> None:
         "ELECTRICITY_RATE": ELECTRICITY_RATE,
         "SYSTEM_NAME": SYSTEM_NAME,
         "DEVICE_CACHE_TTL": DEVICE_CACHE_TTL,
+        "RETROACTIVE_CORRECTION_SECONDS": RETROACTIVE_CORRECTION_SECONDS,
         "VERBOSE_LOGGING": VERBOSE_LOGGING,
         "GAS_RTSP_URL": mask_url_credentials(GAS_RTSP_URL),
         "WATER_RTSP_URL": mask_url_credentials(WATER_RTSP_URL),
@@ -192,6 +196,7 @@ __all__ = [
     "ELECTRICITY_RATE",
     "SYSTEM_NAME",
     "DEVICE_CACHE_TTL",
+    "RETROACTIVE_CORRECTION_SECONDS",
     "VERBOSE_LOGGING",
     "GAS_RTSP_URL",
     "WATER_RTSP_URL",

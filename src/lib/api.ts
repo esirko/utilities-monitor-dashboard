@@ -232,8 +232,20 @@ export const api = {
     return data.devices || []
   },
 
-  async getRealtimeData(): Promise<DataPoint> {
-    return fetchWithAuth('/api/emporia/realtime')
+  async getRealtimeData(lookbackSeconds?: number): Promise<DataPoint> {
+    const query = typeof lookbackSeconds === 'number' && lookbackSeconds > 0
+      ? `?lookbackSeconds=${encodeURIComponent(lookbackSeconds)}`
+      : ''
+
+    const payload = await fetchWithAuth(`/api/emporia/realtime${query}`)
+
+    return {
+      timestamp: payload.timestamp,
+      total: payload.total,
+      devices: payload.devices ?? {},
+      lookbackSeconds: payload.lookbackSeconds,
+      defaultRetroactiveCorrectionSeconds: payload.defaultRetroactiveCorrectionSeconds,
+    }
   },
 
   async getHistoricalData(range: string): Promise<DataPoint[]> {
@@ -275,6 +287,7 @@ export const api = {
     waterStreamUrl?: string
     gasStream?: StreamInfo
     waterStream?: StreamInfo
+    retroactiveCorrectionSeconds?: number
   }> {
     const data = await fetchRootSummary()
     const config = data.config ?? {}
@@ -284,7 +297,8 @@ export const api = {
       gasStreamUrl: config.gasStreamUrl,
       waterStreamUrl: config.waterStreamUrl,
       gasStream: normaliseStreamInfo(config.gasStream ?? data.gasStream),
-      waterStream: normaliseStreamInfo(config.waterStream ?? data.waterStream)
+      waterStream: normaliseStreamInfo(config.waterStream ?? data.waterStream),
+      retroactiveCorrectionSeconds: config.retroactiveCorrectionSeconds ?? data.retroactiveCorrectionSeconds
     }
   },
 

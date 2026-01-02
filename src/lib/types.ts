@@ -10,6 +10,8 @@ export interface DataPoint {
   timestamp: number
   devices: Record<string, number>
   total: number
+  lookbackSeconds?: number
+  defaultRetroactiveCorrectionSeconds?: number
 }
 
 export interface TimeRange {

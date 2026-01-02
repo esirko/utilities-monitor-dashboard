@@ -19,6 +19,7 @@ from backend.config import (
     DEVICE_CACHE_TTL,
     ELECTRICITY_RATE,
     GAS_RTSP_URL,
+    RETROACTIVE_CORRECTION_SECONDS,
     SECRET_KEY,
     SYSTEM_NAME,
     VERBOSE_LOGGING,
@@ -131,6 +132,7 @@ def root():
         "waterStreamUrl": WATER_RTSP_URL or None,
         "gasStream": build_stream_info("gas", GAS_RTSP_URL),
         "waterStream": build_stream_info("water", WATER_RTSP_URL),
+        "retroactiveCorrectionSeconds": RETROACTIVE_CORRECTION_SECONDS,
     }
 
     return jsonify(
@@ -164,6 +166,7 @@ if __name__ == "__main__":
     print(f"System Name: {SYSTEM_NAME}")
     print(f"Electricity Rate: ${ELECTRICITY_RATE:.6f} per kWh")
     print(f"Device Cache TTL: {DEVICE_CACHE_TTL} seconds")
+    print(f"Retroactive Correction Seconds: {RETROACTIVE_CORRECTION_SECONDS} seconds")
     print(f"Verbose Logging: {'Enabled' if VERBOSE_LOGGING else 'Disabled'}")
     print("Endpoints:")
     print("  GET    /                        - Status, configuration, and health summary")
