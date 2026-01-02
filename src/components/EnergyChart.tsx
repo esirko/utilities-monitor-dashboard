@@ -6,9 +6,10 @@ interface EnergyChartProps {
   data: DataPoint[]
   devices: Device[]
   height?: number
+  retroLookbackSeconds?: number
 }
 
-export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
+export function EnergyChart({ data, devices, height = 400, retroLookbackSeconds }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<d3.Selection<HTMLDivElement, unknown, null, undefined> | null>(null)
@@ -74,6 +75,14 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
     const now = Date.now()
     const oldestTimestamp = data.length > 0 ? data[0].timestamp : now - 60000
     const newestTimestamp = data.length > 0 ? Math.max(data[data.length - 1].timestamp, now) : now
+
+    const latestLookback = data.length > 0 ? data[data.length - 1].lookbackSeconds : undefined
+    const lookbackSecondsValue =
+      typeof retroLookbackSeconds === 'number' && Number.isFinite(retroLookbackSeconds)
+        ? retroLookbackSeconds
+        : typeof latestLookback === 'number' && Number.isFinite(latestLookback)
+          ? latestLookback
+          : 0
     
     const xScale = d3.scaleLinear()
       .domain([oldestTimestamp, newestTimestamp])
@@ -255,6 +264,35 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
       .selectAll('text')
       .style('font-family', 'JetBrains Mono')
       .style('font-size', '11px')
+
+    if (lookbackSecondsValue > 0) {
+      const lookbackMs = lookbackSecondsValue * 1000
+      const targetTimestamp = newestTimestamp - lookbackMs
+      const clampedTimestamp = Math.max(oldestTimestamp, Math.min(targetTimestamp, newestTimestamp))
+      const lookbackX = xScale(clampedTimestamp)
+
+      g.append('line')
+        .attr('x1', lookbackX)
+        .attr('x2', lookbackX)
+        .attr('y1', 0)
+        .attr('y2', innerHeight)
+        .attr('stroke', 'oklch(0.75 0.20 25)')
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '6,4')
+        .attr('opacity', 0.9)
+        .attr('pointer-events', 'none')
+
+      g.append('text')
+        .attr('x', lookbackX - 6)
+        .attr('y', 12)
+        .attr('text-anchor', 'end')
+        .attr('font-family', 'JetBrains Mono')
+        .attr('font-size', '11px')
+        .attr('font-weight', '600')
+        .attr('fill', 'oklch(0.80 0.18 25)')
+        .attr('pointer-events', 'none')
+        .text(`${lookbackSecondsValue}s retro`)
+    }
     
     if (!tooltipRef.current) {
       tooltipRef.current = d3.select(container)
@@ -348,7 +386,7 @@ export function EnergyChart({ data, devices, height = 400 }: EnergyChartProps) {
         updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
       }
     }
-  }, [data, devices, height])
+  }, [data, devices, height, retroLookbackSeconds])
   
   return (
     <div ref={containerRef} className="w-full relative">

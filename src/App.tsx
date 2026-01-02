@@ -545,7 +545,12 @@ function App() {
                 </div>
               </div>
               <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
-                <EnergyChart data={dataPoints} devices={devices} height={400} />
+                <EnergyChart
+                  data={dataPoints}
+                  devices={devices}
+                  height={400}
+                  retroLookbackSeconds={retroLookbackSeconds}
+                />
                 {isLoadingEnergyData && dataPoints.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">
                     <div className="text-center">
