@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactPlayer from 'react-player'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -169,6 +169,19 @@ export function UtilityStream({
 	const firstPreviewRef = useRef<HTMLCanvasElement | null>(null)
 	const secondPreviewRef = useRef<HTMLCanvasElement | null>(null)
 	const previewRefs = [firstPreviewRef, secondPreviewRef]
+	const previewAspectsRef = useRef<[number, number]>([16 / 9, 16 / 9])
+	const [previewAspects, setPreviewAspects] = useState<[number, number]>([16 / 9, 16 / 9])
+
+	const updatePreviewAspect = useCallback((index: number, aspect: number) => {
+		const safeAspect = Number.isFinite(aspect) && aspect > 0 ? aspect : 16 / 9
+		if (Math.abs(previewAspectsRef.current[index] - safeAspect) < 0.01) {
+			return
+		}
+		const next = [...previewAspectsRef.current] as [number, number]
+		next[index] = safeAspect
+		previewAspectsRef.current = next
+		setPreviewAspects(next)
+	}, [])
 	const animationFrameRef = useRef<number | null>(null)
 	const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
 	const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
@@ -386,24 +399,24 @@ export function UtilityStream({
 		setStatus('playing')
 	}
 
-	const drawZoomPreview = (box: SelectionRect, canvas: HTMLCanvasElement | null) => {
+	const drawZoomPreview = (box: SelectionRect, canvas: HTMLCanvasElement | null, index: number) => {
 		if (!canvas || !imageRef.current || status !== 'playing') return
 		if (!isRectConfigured(box)) return
 
-		const ctx = canvas.getContext('2d')
-		if (!ctx) return
+	const ctx = canvas.getContext('2d')
+	if (!ctx) return
 
-		const naturalWidth = imageRef.current.naturalWidth || frameSize?.width
-		const naturalHeight = imageRef.current.naturalHeight || frameSize?.height
-		if (!naturalWidth || !naturalHeight) return
+	const naturalWidth = imageRef.current.naturalWidth || frameSize?.width
+	const naturalHeight = imageRef.current.naturalHeight || frameSize?.height
+	if (!naturalWidth || !naturalHeight) return
 
 		const containerRect = containerRef.current?.getBoundingClientRect()
 		if (!containerRect || !containerRect.width || !containerRect.height) return
 
-		const hostRect = canvas.parentElement?.getBoundingClientRect()
-		const targetWidth = Math.max(1, Math.round(hostRect?.width ?? 0))
-		const targetHeight = Math.max(1, Math.round(hostRect?.height ?? 0))
-		if (!targetWidth || !targetHeight) return
+	const hostRect = canvas.parentElement?.getBoundingClientRect()
+	const targetWidth = Math.max(1, Math.round(hostRect?.width ?? 0))
+	const targetHeight = Math.max(1, Math.round(hostRect?.height ?? 0))
+	if (!targetWidth || !targetHeight) return
 
 		if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
 			canvas.width = targetWidth
@@ -428,27 +441,21 @@ export function UtilityStream({
 
 		if (sw <= 1 || sh <= 1) return
 
-		const clampedSX = Math.min(Math.max(sx, 0), naturalWidth - sw)
-		const clampedSY = Math.min(Math.max(sy, 0), naturalHeight - sh)
+		const cropX = Math.min(Math.max(sx, 0), Math.max(0, naturalWidth - sw))
+		const cropY = Math.min(Math.max(sy, 0), Math.max(0, naturalHeight - sh))
 
 		const selectionAspect = sw / sh
-		const canvasAspect = canvas.width / canvas.height
-		let destWidth: number
-		let destHeight: number
-		if (selectionAspect >= canvasAspect) {
-			destWidth = canvas.width
-			destHeight = destWidth / selectionAspect
-		} else {
-			destHeight = canvas.height
-			destWidth = destHeight * selectionAspect
-		}
-		const destX = (canvas.width - destWidth) / 2
-		const destY = (canvas.height - destHeight) / 2
+		updatePreviewAspect(index, selectionAspect)
+
+		const destX = 0
+		const destY = 0
+		const destWidth = canvas.width
+		const destHeight = canvas.height
 
 		ctx.save()
 		ctx.fillStyle = 'black'
 		ctx.fillRect(0, 0, canvas.width, canvas.height)
-		ctx.drawImage(imageRef.current, clampedSX, clampedSY, sw, sh, destX, destY, destWidth, destHeight)
+		ctx.drawImage(imageRef.current, cropX, cropY, sw, sh, destX, destY, destWidth, destHeight)
 		ctx.restore()
 	}
 
@@ -464,7 +471,7 @@ export function UtilityStream({
 		const tick = () => {
 			const sourceBoxes = (mode === 'configured' ? savedBoxes : boxesRef.current).map(toRectOrZero)
 			sourceBoxes.forEach((box, index) => {
-				drawZoomPreview(box, previewRefs[index]?.current ?? null)
+				drawZoomPreview(box, previewRefs[index]?.current ?? null, index)
 			})
 			animationFrameRef.current = requestAnimationFrame(tick)
 		}
@@ -643,30 +650,35 @@ export function UtilityStream({
 			) : (
 				<div className="space-y-3">
 					<div className="space-y-3">
-						{BOX_META.map((meta, index) => (
-							<div key={meta.label} className="space-y-2">
-								<div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-									<span className={`inline-flex items-center rounded-md px-2 py-0.5 ${meta.badge}`}>
-										{meta.label}
-									</span>
-								</div>
-								<div className="relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black">
-									<canvas
-										ref={previewRefs[index]}
-										className={`h-full w-full ${index === 1 && secondaryPreviewFlipped ? 'rotate-180' : ''}`}
-									/>
-								</div>
-								{index === 1 && onSecondaryPreviewFlipToggle && (
-									<button
-										type="button"
-										onClick={() => onSecondaryPreviewFlipToggle(!secondaryPreviewFlipped)}
-										className="text-xs font-medium text-primary hover:underline"
+						{BOX_META.map((meta, index) => {
+							return (
+								<div key={meta.label} className="space-y-2">
+									<div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+										<span className={`inline-flex items-center rounded-md px-2 py-0.5 ${meta.badge}`}>
+											{meta.label}
+										</span>
+									</div>
+									<div
+										className="relative w-full overflow-hidden rounded-md border border-border/60 bg-black"
+										style={{ aspectRatio: previewAspects[index] }}
 									>
-										{secondaryPreviewFlipped ? 'Disable upside-down view' : 'Flip upside-down'}
-									</button>
-								)}
-							</div>
-						))}
+										<canvas
+											ref={previewRefs[index]}
+											className={`h-full w-full ${index === 1 && secondaryPreviewFlipped ? 'rotate-180' : ''}`}
+										/>
+									</div>
+									{index === 1 && onSecondaryPreviewFlipToggle && (
+										<button
+											type="button"
+											onClick={() => onSecondaryPreviewFlipToggle(!secondaryPreviewFlipped)}
+											className="text-xs font-medium text-primary hover:underline"
+										>
+											{secondaryPreviewFlipped ? 'Disable upside-down view' : 'Flip upside-down'}
+										</button>
+									)}
+								</div>
+							)
+						})}
 					</div>
 
 					{onResetSelections && (
