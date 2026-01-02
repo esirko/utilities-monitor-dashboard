@@ -15,7 +15,6 @@ interface UtilityStreamProps {
 	secondaryPreviewFlipped?: boolean
 	onSecondaryPreviewFlipToggle?: (value: boolean) => void
 }
-
 export interface SelectionRect {
 	x: number
 	y: number
@@ -39,7 +38,7 @@ function getStreamDetails(rtspUrl?: string | null, fallbackUrl?: string | null) 
 		return {
 			isValid: false,
 			message: 'No stream URL available. Configure the backend GAS_RTSP_URL/WATER_RTSP_URL to enable live video.',
-			protocol: null as string | null
+			protocol: null as string | null,
 		}
 	}
 	const protocol = new URL((rtspUrl ?? fallbackUrl) as string).protocol.replace(':', '').toLowerCase()
@@ -50,7 +49,7 @@ function getStreamDetails(rtspUrl?: string | null, fallbackUrl?: string | null) 
 	return {
 		isValid: true,
 		message,
-		protocol
+		protocol,
 	}
 }
 
@@ -63,14 +62,14 @@ const BOX_META = [
 		label: 'Region 1',
 		border: 'border-sky-400/90',
 		background: 'bg-sky-400/25',
-		badge: 'bg-sky-500/80 text-white'
+		badge: 'bg-sky-500/80 text-white',
 	},
 	{
 		label: 'Region 2',
 		border: 'border-orange-400/90',
 		background: 'bg-orange-400/25',
-		badge: 'bg-orange-500/80 text-white'
-	}
+		badge: 'bg-orange-500/80 text-white',
+	},
 ] as const
 
 type DragMode = 'draw' | 'move'
@@ -226,6 +225,15 @@ export function UtilityStream({
 
 	const canSelect = Boolean(mjpegUrl) && status !== 'error' && mode === 'setup'
 	const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
+	const DEFAULT_VIEWPORT: { width: number; height: number } = { width: 1600, height: 900 }
+
+	const getSelectionViewport = useCallback(() => {
+		const rect = containerRef.current?.getBoundingClientRect()
+		if (rect && rect.width > 1 && rect.height > 1) {
+			return { width: rect.width, height: rect.height }
+		}
+		return DEFAULT_VIEWPORT
+	}, [])
 
 	function removeGlobalListeners() {
 		if (moveListenerRef.current) {
@@ -410,8 +418,9 @@ export function UtilityStream({
 	const naturalHeight = imageRef.current.naturalHeight || frameSize?.height
 	if (!naturalWidth || !naturalHeight) return
 
-		const containerRect = containerRef.current?.getBoundingClientRect()
-		if (!containerRect || !containerRect.width || !containerRect.height) return
+		const viewport = getSelectionViewport()
+		const viewportWidth = viewport.width
+		const viewportHeight = viewport.height
 
 	const hostRect = canvas.parentElement?.getBoundingClientRect()
 	const targetWidth = Math.max(1, Math.round(hostRect?.width ?? 0))
@@ -423,16 +432,16 @@ export function UtilityStream({
 			canvas.height = targetHeight
 		}
 
-		const scale = Math.max(containerRect.width / naturalWidth, containerRect.height / naturalHeight)
+		const scale = Math.max(viewportWidth / naturalWidth, viewportHeight / naturalHeight)
 		const displayedWidth = naturalWidth * scale
 		const displayedHeight = naturalHeight * scale
-		const offsetX = (displayedWidth - containerRect.width) / 2
-		const offsetY = (displayedHeight - containerRect.height) / 2
+		const offsetX = (displayedWidth - viewportWidth) / 2
+		const offsetY = (displayedHeight - viewportHeight) / 2
 
-		const leftPx = box.x * containerRect.width
-		const topPx = box.y * containerRect.height
-		const widthPx = box.width * containerRect.width
-		const heightPx = box.height * containerRect.height
+		const leftPx = box.x * viewportWidth
+		const topPx = box.y * viewportHeight
+		const widthPx = box.width * viewportWidth
+		const heightPx = box.height * viewportHeight
 
 		const sx = (leftPx + offsetX) / scale
 		const sy = (topPx + offsetY) / scale
@@ -509,6 +518,8 @@ export function UtilityStream({
 		}
 	}
 
+	const shouldShowFullFrame = mode === 'setup'
+
 	if (!details.isValid) {
 		return (
 			<Alert variant="destructive">
@@ -521,22 +532,27 @@ export function UtilityStream({
 		<div className="space-y-4">
 			<div
 				ref={containerRef}
-				className={`relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black ${mode !== 'setup' ? 'cursor-default' : ''}`}
-				onPointerDown={handlePointerDown}
-				onPointerMove={updateSelection}
-				onPointerUp={finalizeSelection}
-				onDoubleClick={handleDoubleClick}
+				className={
+					shouldShowFullFrame
+						? 'relative aspect-video overflow-hidden rounded-md border border-border/60 bg-black'
+						: 'sr-only pointer-events-none'
+				}
+				onPointerDown={shouldShowFullFrame ? handlePointerDown : undefined}
+				onPointerMove={shouldShowFullFrame ? updateSelection : undefined}
+				onPointerUp={shouldShowFullFrame ? finalizeSelection : undefined}
+				onDoubleClick={shouldShowFullFrame ? handleDoubleClick : undefined}
 				role="presentation"
-				style={{ touchAction: 'none' }}
+				style={{ touchAction: shouldShowFullFrame ? 'none' : undefined }}
+				aria-hidden={!shouldShowFullFrame}
 			>
 				{mjpegUrl ? (
 					<>
-						{status === 'loading' && (
+						{status === 'loading' && shouldShowFullFrame && (
 							<div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
 								Loading video…
 							</div>
 						)}
-						{status === 'error' && (
+						{status === 'error' && shouldShowFullFrame && (
 							<div className="absolute inset-0 flex items-center justify-center bg-background/80 text-sm text-destructive">
 								Failed to load restream. Check backend restreamer.
 							</div>
@@ -545,23 +561,25 @@ export function UtilityStream({
 							ref={imageRef}
 							src={mjpegUrl}
 							alt={`${title} live stream`}
-							className={`h-full w-full object-cover ${status === 'error' ? 'hidden' : ''}`}
+							className={`h-full w-full object-cover ${status === 'error' || !shouldShowFullFrame ? 'hidden' : ''}`}
 							onLoad={handleImageLoad}
 							onError={() => setStatus('error')}
 						/>
 					</>
 				) : (
-					<Player
-						url={rtspUrl ?? undefined}
-						playing
-						controls
-						muted
-						width="100%"
-						height="100%"
-					/>
+					shouldShowFullFrame && (
+						<Player
+							url={rtspUrl ?? undefined}
+							playing
+							controls
+							muted
+							width="100%"
+							height="100%"
+						/>
+					)
 				)}
 
-				{mode === 'setup' &&
+				{shouldShowFullFrame &&
 					draftBoxes.map((selection, index) => {
 						if (!selection) return null
 						const meta = BOX_META[index]
@@ -580,15 +598,9 @@ export function UtilityStream({
 						)
 					})}
 
-				{mode === 'setup' && canSelect && status === 'playing' && (
+				{shouldShowFullFrame && canSelect && status === 'playing' && (
 					<div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-md bg-background/70 px-3 py-1 text-xs text-foreground">
 						Draw {BOX_META[activeIndex].label.toLowerCase()} • Double-click to clear active region
-					</div>
-				)}
-
-				{mode === 'configured' && (
-					<div className="pointer-events-none absolute inset-x-2 bottom-2 rounded-md bg-background/70 px-3 py-1 text-xs text-muted-foreground">
-						Regions locked • Use reset to reconfigure
 					</div>
 				)}
 			</div>
