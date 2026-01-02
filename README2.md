@@ -41,6 +41,8 @@ source venv/bin/activate
 python3 backend_server.py
 ```
 
+The disadvantage of using my local mac is that there's a port conflict on 5000 that I can't figure out how to resolve (in a codespace I can use port forwarding)... so I haven't been able to do `npm run dev` when devving this way.
+
 
 ### Debugging just the python backend
 
