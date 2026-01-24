@@ -21,7 +21,7 @@ export function Clock() {
   }
 
   return (
-    <div className="text-2xl font-bold tabular-nums text-foreground">
+    <div className="text-lg font-semibold tabular-nums text-foreground">
       {formatTime(time)}
     </div>
   )

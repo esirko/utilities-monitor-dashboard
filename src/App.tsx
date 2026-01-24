@@ -527,8 +527,8 @@ function App() {
         <div className="max-w-7xl mx-auto space-y-6 px-4 py-6 md:px-6">
           <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <Lightning weight="fill" className="w-6 h-6 text-yellow-500" />
-              <h1 className="text-2xl font-bold tracking-tight">Electricity</h1>
+              <Lightning weight="fill" className="w-5 h-5 text-yellow-500" />
+              <h1 className="text-lg font-semibold tracking-tight">Electricity</h1>
               {isDemoMode && (
                 <span className="text-sm text-muted-foreground">(Demo Mode)</span>
               )}
