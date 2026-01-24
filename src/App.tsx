@@ -29,7 +29,7 @@ import { UtilityStream, SelectionRect } from '@/components/UtilityStream'
 import { useRealEnergyData } from '@/hooks/use-real-energy-data'
 import { api, StreamInfo } from '@/lib/api'
 import { TIME_RANGES } from '@/lib/types'
-import { Lightning, ChartLine, SignOut, Pause, Play } from '@phosphor-icons/react'
+import { Lightning, ChartLine, SignOut, Pause, Play, Flame, Drop } from '@phosphor-icons/react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type DataMode = 'demo' | 'real'
@@ -398,11 +398,13 @@ function App() {
       streamProps?: Partial<ComponentProps<typeof UtilityStream>>
       extrasBelowStream?: ReactNode
       ratesInfo?: { title: string; content: ReactNode }
+      icon?: ReactNode
     }
   ) => (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
+          {options?.icon}
           <h2 className="text-lg font-semibold leading-tight">{title}</h2>
           {options?.ratesInfo && (
             <Dialog>
@@ -467,6 +469,7 @@ function App() {
     undefined,
     gasStream,
     {
+      icon: <Flame weight="fill" className="w-5 h-5 text-orange-500" />,
       streamProps: {
         onConfirmSelections: boxes => handleConfirmSelectionSet('gas', boxes),
         onResetSelections: () => handleResetSelectionSet('gas'),
@@ -492,6 +495,7 @@ function App() {
     undefined,
     waterStream,
     {
+      icon: <Drop weight="fill" className="w-5 h-5 text-blue-500" />,
       streamProps: {
         onConfirmSelections: boxes => handleConfirmSelectionSet('water', boxes),
         onResetSelections: () => handleResetSelectionSet('water'),
@@ -523,19 +527,11 @@ function App() {
         <div className="max-w-7xl mx-auto space-y-6 px-4 py-6 md:px-6">
           <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-lg bg-primary/20 border-2 border-primary">
-                <Lightning weight="fill" className="w-8 h-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  {systemName || 'Not connected'}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {isDemoMode
-                    ? 'Demo Mode - Simulated Data'
-                    : 'Real-time power consumption tracking with Emporia Vue and pyemvue'}
-                </p>
-              </div>
+              <Lightning weight="fill" className="w-6 h-6 text-yellow-500" />
+              <h1 className="text-2xl font-bold tracking-tight">Electricity</h1>
+              {isDemoMode && (
+                <span className="text-sm text-muted-foreground">(Demo Mode)</span>
+              )}
             </div>
             
             <div className="flex items-center gap-2">
