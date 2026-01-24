@@ -551,13 +551,8 @@ function App() {
           )}
           
           <Card className="p-6">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-wrap items-start justify-between gap-6">
-                <div className="flex items-center gap-2">
-                  <ChartLine weight="bold" className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-semibold">Power Usage</h2>
-                </div>
-                <div className="flex flex-wrap items-end gap-x-8 gap-y-4 text-sm sm:text-base">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-3 text-sm sm:text-base">
                   <div className="flex flex-col min-w-[150px]">
                     <span className="text-xs uppercase tracking-wider text-muted-foreground">Total Power</span>
                     <div className="flex items-baseline gap-2">
@@ -573,7 +568,6 @@ function App() {
                     <span className="text-xs uppercase tracking-wider text-muted-foreground">Monthly Extrapolation</span>
                     <span className="text-2xl font-semibold tabular-nums">${monthlyCost.toFixed(2)}</span>
                   </div>
-                </div>
               </div>
               <div className="bg-secondary/30 rounded-lg p-4 relative min-h-[400px]">
                 <EnergyChart
