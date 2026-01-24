@@ -475,9 +475,11 @@ function App() {
         title: 'Gas Rates',
         content: (
           <div className="space-y-2">
-            <p>Gas is typically billed per therm or CCF (hundred cubic feet).</p>
-            <p>Current average rate: <strong>$1.50 per therm</strong></p>
-            <p className="text-xs">Rates vary by provider and season. Check your utility bill for exact pricing.</p>
+            <p>The upper right dial is in units of CCF (100 cubic feet) (which is why it says 1000 cubic feet per rev).</p>
+            <p>The lower left dial spins 200 times per CCF (so a full rev is a half cubic foot, as it says).</p>
+            <p>1 CCF = 1.0293 therms.</p>
+            <p><strong>The gas rate is $2.61/therm, or $2.69/CCF, or 1.34 cents per revolution (lower-left dial).</strong></p>
+            <p>If the lower-left dial completed a revolution every 60 seconds, and stayed at that rate for a month, the cost would be $581.</p>
           </div>
         ),
       },
@@ -501,9 +503,8 @@ function App() {
         title: 'Water Rates',
         content: (
           <div className="space-y-2">
-            <p>Water is typically billed per 1,000 gallons or per HCF (hundred cubic feet).</p>
-            <p>Current average rate: <strong>$4.50 per 1,000 gallons</strong></p>
-            <p className="text-xs">Rates vary by municipality. Check your water bill for exact pricing and tier structures.</p>
+            <p><strong>The water rate is 7.96 cents per cubic foot</strong> (up to 8000 cubic feet, and 16.53 cents per cubic foot after that).</p>
+            <p></p>
           </div>
         ),
       },
