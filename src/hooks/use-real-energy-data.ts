@@ -111,7 +111,10 @@ export function useRealEnergyData(
         
         setDataPoints(prev => {
           const updated = mergeAndSortDataPoints(prev, [alignedPoint])
-          const sliced = updated.slice(-maxPoints)
+          const now = Date.now()
+          const cutoff = now - (timeRange.seconds * 1000)
+          const timePruned = updated.filter(point => point.timestamp > cutoff)
+          const sliced = timePruned.slice(-maxPoints)
           console.log(`[useRealEnergyData] Added realtime point at ${new Date(alignedPoint.timestamp).toLocaleTimeString()}, total points: ${sliced.length}`)
           return sliced
         })
