@@ -758,9 +758,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6">
-        <Card className="flex items-center gap-3 p-3 shadow-sm sm:p-4">
-          <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-3">
+        <Card className="flex items-center gap-2 px-3 py-2 shadow-sm">
+          <h1 className="text-lg font-semibold leading-tight tracking-tight">
             <span className="inline-flex items-center gap-2 text-left sm:gap-3">
               <span>{utilitiesTitle}</span>
               {systemName && !isDemoMode && (
@@ -777,12 +777,12 @@ function App() {
           </h1>
         </Card>
         <div className="rounded-xl border bg-card/40 shadow-sm">
-          <div className="h-[72vh] min-h-[520px] overflow-hidden">
+          <div className="h-[calc(100vh-80px)] min-h-[520px] overflow-hidden">
             {renderLayout()}
           </div>
         </div>
-        <footer className="mt-auto">
-          <Card className="flex flex-col gap-3 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+        <footer className="mt-8">
+          <Card className="flex flex-col gap-3 px-3 py-2 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <span className="text-sm font-medium text-muted-foreground">View controls</span>
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <ToggleGroup
