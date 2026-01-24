@@ -536,6 +536,7 @@ function App() {
                   retroLookbackSeconds={retroLookbackEnabled ? retroLookbackSeconds : undefined}
                   showRetroLookbackLine={retroLookbackEnabled}
                   sampleIntervalMs={timeRange.updateInterval}
+                  timeRangeSeconds={timeRange.seconds}
                 />
                 {isLoadingEnergyData && dataPoints.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center bg-secondary/50 backdrop-blur-sm rounded-lg">

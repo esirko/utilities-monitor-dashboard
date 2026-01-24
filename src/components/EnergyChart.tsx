@@ -9,6 +9,7 @@ interface EnergyChartProps {
   retroLookbackSeconds?: number
   showRetroLookbackLine?: boolean
   sampleIntervalMs?: number
+  timeRangeSeconds?: number
 }
 
 export function EnergyChart({
@@ -18,6 +19,7 @@ export function EnergyChart({
   retroLookbackSeconds,
   showRetroLookbackLine = true,
   sampleIntervalMs,
+  timeRangeSeconds,
 }: EnergyChartProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -109,8 +111,11 @@ export function EnergyChart({
     }
     
     const now = Date.now()
-    const oldestTimestamp = data.length > 0 ? data[0].timestamp : now - 60000
-    const newestTimestamp = data.length > 0 ? Math.max(data[data.length - 1].timestamp, now) : now
+    const rangeMs = (typeof timeRangeSeconds === 'number' && timeRangeSeconds > 0)
+      ? timeRangeSeconds * 1000
+      : 60000
+    const oldestTimestamp = now - rangeMs
+    const newestTimestamp = now
 
     const latestLookback = data.length > 0 ? data[data.length - 1].lookbackSeconds : undefined
     const lookbackSecondsValue = showRetroLookbackLine
@@ -474,7 +479,7 @@ export function EnergyChart({
         updateTooltip(lastMousePositionRef.current.x, lastMousePositionRef.current.y, offsetX, offsetY)
       }
     }
-  }, [data, devices, height, retroLookbackSeconds, showRetroLookbackLine, sampleIntervalMs])
+  }, [data, devices, height, retroLookbackSeconds, showRetroLookbackLine, sampleIntervalMs, timeRangeSeconds])
   
   return (
     <div ref={containerRef} className="w-full relative">
