@@ -11,6 +11,14 @@ import { Card } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { EnergyChart } from '@/components/EnergyChart'
@@ -389,11 +397,33 @@ function App() {
     options?: {
       streamProps?: Partial<ComponentProps<typeof UtilityStream>>
       extrasBelowStream?: ReactNode
+      ratesInfo?: { title: string; content: ReactNode }
     }
   ) => (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <div className="border-b px-4 py-3 sm:px-6">
-        <h2 className="text-lg font-semibold leading-tight">{title}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold leading-tight">{title}</h2>
+          {options?.ratesInfo && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="text-sm text-primary hover:underline focus:outline-none">
+                  Rates
+                </button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{options.ratesInfo.title}</DialogTitle>
+                </DialogHeader>
+                <DialogDescription asChild>
+                  <div className="text-sm text-muted-foreground">
+                    {options.ratesInfo.content}
+                  </div>
+                </DialogDescription>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
         {description ? (
           <p className="text-sm text-muted-foreground">{description}</p>
         ) : null}
@@ -440,7 +470,17 @@ function App() {
       streamProps: {
         onConfirmSelections: boxes => handleConfirmSelectionSet('gas', boxes),
         onResetSelections: () => handleResetSelectionSet('gas'),
-      }
+      },
+      ratesInfo: {
+        title: 'Gas Rates',
+        content: (
+          <div className="space-y-2">
+            <p>Gas is typically billed per therm or CCF (hundred cubic feet).</p>
+            <p>Current average rate: <strong>$1.50 per therm</strong></p>
+            <p className="text-xs">Rates vary by provider and season. Check your utility bill for exact pricing.</p>
+          </div>
+        ),
+      },
     }
   )
 
@@ -456,7 +496,17 @@ function App() {
         secondaryPreviewFlipped: waterInvertZoom,
         onSecondaryPreviewFlipToggle: value => setWaterInvertZoom(value),
       },
-      extrasBelowStream: null
+      extrasBelowStream: null,
+      ratesInfo: {
+        title: 'Water Rates',
+        content: (
+          <div className="space-y-2">
+            <p>Water is typically billed per 1,000 gallons or per HCF (hundred cubic feet).</p>
+            <p>Current average rate: <strong>$4.50 per 1,000 gallons</strong></p>
+            <p className="text-xs">Rates vary by municipality. Check your water bill for exact pricing and tier structures.</p>
+          </div>
+        ),
+      },
     }
   )
 
