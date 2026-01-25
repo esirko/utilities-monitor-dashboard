@@ -11,18 +11,24 @@ export function Clock() {
     return () => clearInterval(interval)
   }, [])
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
+  const formatDateTime = (date: Date) => {
+    const dayDate = date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    })
+    const time = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false
+      hour12: true
     })
+    return `${dayDate} ${time}`
   }
 
   return (
     <div className="text-lg font-semibold tabular-nums text-foreground">
-      {formatTime(time)}
+      {formatDateTime(time)}
     </div>
   )
 }
