@@ -61,10 +61,10 @@ def get_cached_devices():
         and device_cache["timestamp"] is not None
         and (now - device_cache["timestamp"]).total_seconds() < DEVICE_CACHE_TTL
     ):
-        print(
-            "[Cache] Using cached devices (age: "
-            f"{(now - device_cache['timestamp']).total_seconds():.1f}s)"
-        )
+        #print(
+        #    "[Cache] Using cached devices (age: "
+        #    f"{(now - device_cache['timestamp']).total_seconds():.1f}s)"
+        #)
         return copy.deepcopy(device_cache["devices"])
 
     print("[Cache] Cache miss or stale, fetching devices from API")
