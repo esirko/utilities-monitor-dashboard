@@ -31,11 +31,22 @@ from flask import Blueprint, abort, jsonify, request
 
 VALID_STREAMS = {"gas", "water"}
 
+# ANSI color codes
+_RED = "\033[91m"
+_BLUE = "\033[94m"
+_RESET = "\033[0m"
+
 
 def _log(message: str) -> None:
-    """Print a log message with timestamp."""
+    """Print a log message with timestamp and color."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    # Color based on stream type
+    if "gas" in message.lower():
+        print(f"{_RED}[{timestamp}] {message}{_RESET}")
+    elif "water" in message.lower():
+        print(f"{_BLUE}[{timestamp}] {message}{_RESET}")
+    else:
+        print(f"[{timestamp}] {message}")
 
 
 _DEFAULT_STATE_PATH = Path(__file__).resolve().parent.parent / "stream_selections.json"

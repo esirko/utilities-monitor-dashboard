@@ -48,10 +48,21 @@ app.register_blueprint(streams_bp)
 
 log_configuration_snapshot()
 
+# ANSI color codes
+_RED = "\033[91m"
+_BLUE = "\033[94m"
+_RESET = "\033[0m"
+
 
 def _log(message: str) -> None:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    # Color based on stream type
+    if "[gas]" in message.lower():
+        print(f"{_RED}[{timestamp}] {message}{_RESET}")
+    elif "[water]" in message.lower():
+        print(f"{_BLUE}[{timestamp}] {message}{_RESET}")
+    else:
+        print(f"[{timestamp}] {message}")
 
 
 def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:

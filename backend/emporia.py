@@ -23,11 +23,23 @@ from backend.config import (
 
 emporia_bp = Blueprint("emporia", __name__, url_prefix="/api/emporia")
 
+# ANSI color codes for Emporia logs
+_LIGHT_GREEN = "\033[92m"  # Bright green for requests
+_DARK_GREEN = "\033[32m"   # Dark green for responses
+_GREEN = "\033[32m"        # Standard green for other Emporia messages
+_RESET = "\033[0m"
+
 
 def _log(message: str) -> None:
-    """Print a log message with timestamp."""
+    """Print a log message with timestamp and color."""
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    # Color based on message type
+    if "REQUEST" in message:
+        print(f"{_LIGHT_GREEN}[{timestamp}] {message}{_RESET}")
+    elif "RESPONSE" in message:
+        print(f"{_DARK_GREEN}[{timestamp}] {message}{_RESET}")
+    else:
+        print(f"{_GREEN}[{timestamp}] {message}{_RESET}")
 
 
 vue = PyEmVue()
