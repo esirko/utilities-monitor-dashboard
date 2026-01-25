@@ -49,6 +49,11 @@ app.register_blueprint(streams_bp)
 log_configuration_snapshot()
 
 
+def _log(message: str) -> None:
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}")
+
+
 def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
     """Proxy an RTSP stream as MJPEG if OpenCV is available."""
     if not rtsp_url:
@@ -64,7 +69,7 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
         last_frame_time = time.time()
         last_log_time = time.time()
         frame_count = 0
-        print(f"[{stream_name}] Stream started")
+        _log(f"[{stream_name}] Stream started")
         try:
             while True:
                 success, frame = cap.read()
@@ -78,7 +83,7 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
                 
                 # Log every 5 seconds while streaming
                 if time.time() - last_log_time >= 5:
-                    print(f"[{stream_name}] Streaming active ({frame_count} frames)")
+                    _log(f"[{stream_name}] Streaming active ({frame_count} frames)")
                     last_log_time = time.time()
                     frame_count = 0
                 
@@ -92,7 +97,7 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
                     b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
                 )
         finally:
-            print(f"[{stream_name}] Stream ended")
+            _log(f"[{stream_name}] Stream ended")
             cap.release()
 
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
