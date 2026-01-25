@@ -706,11 +706,11 @@ function App() {
     if (splitOrientation === 'horizontal') {
       return (
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={40} minSize={20} collapsible collapsedSize={0}>
+          <ResizablePanel defaultSize={67} minSize={20} collapsible collapsedSize={0}>
             {panel(first)}
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={60} minSize={30} collapsible collapsedSize={0}>
+          <ResizablePanel defaultSize={33} minSize={20} collapsible collapsedSize={0}>
             <ResizablePanelGroup direction="vertical" className="h-full">
               <ResizablePanel defaultSize={50} minSize={20} collapsible collapsedSize={0}>
                 {panel(second)}
