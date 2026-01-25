@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import time
 
 import jwt
@@ -34,6 +35,8 @@ from backend.demo import demo_bp
 from backend.emporia import emporia_bp, get_authenticated_username, is_authenticated
 from backend.streams import analyze_frame, get_stream_selections, streams_bp
 
+# Suppress Werkzeug access logs (the '- -' lines on every request)
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
 app = Flask(__name__)
 CORS(app)
