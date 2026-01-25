@@ -23,6 +23,13 @@ from backend.config import (
 
 emporia_bp = Blueprint("emporia", __name__, url_prefix="/api/emporia")
 
+
+def _log(message: str) -> None:
+    """Print a log message with timestamp."""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}")
+
+
 vue = PyEmVue()
 _authenticated = False
 _credentials_username: str | None = None
@@ -50,7 +57,7 @@ def _set_authenticated(username: str | None, value: bool) -> None:
 def invalidate_device_cache() -> None:
     device_cache["devices"] = None
     device_cache["timestamp"] = None
-    print("[Cache] Device cache invalidated")
+    _log("[Cache] Device cache invalidated")
 
 
 def get_cached_devices():
@@ -67,14 +74,14 @@ def get_cached_devices():
         #)
         return copy.deepcopy(device_cache["devices"])
 
-    print("[Cache] Cache miss or stale, fetching devices from API")
+    _log("[Cache] Cache miss or stale, fetching devices from API")
     log_emporia_request("vue.get_devices")
     devices = vue.get_devices()
     log_devices(devices)
 
     device_cache["devices"] = copy.deepcopy(devices)
     device_cache["timestamp"] = now
-    print(f"[Cache] Cached {len(devices)} devices")
+    _log(f"[Cache] Cached {len(devices)} devices")
     return copy.deepcopy(device_cache["devices"])
 
 
@@ -105,7 +112,7 @@ def log_emporia_request(method_name: str, **params) -> Dict[str, Any]:
         redacted_params["password"] = "***REDACTED***"
 
     params_str = ", ".join(f"{k}={v}" for k, v in redacted_params.items())
-    print(f"[Emporia API] REQUEST  > {method_name}({params_str})")
+    _log(f"[Emporia API] REQUEST  > {method_name}({params_str})")
     return redacted_params
 
 
@@ -130,18 +137,18 @@ def log_emporia_response_full_json(method_name: str, response: Any) -> None:
     try:
         converted = object_to_dict(response)
         response_str = json.dumps(converted, indent=2, default=str)
-        print(f"[Emporia API] RESPONSE < {method_name}:\n{response_str}")
+        _log(f"[Emporia API] RESPONSE < {method_name}:\n{response_str}")
     except Exception as exc:  # pragma: no cover - debug helper
-        print(
+        _log(
             f"[Emporia API] RESPONSE < {method_name}: "
             f"<unable to serialize: {exc}>"
         )
 
 
 def log_devices(devices) -> None:
-    print("[Emporia API] RESPONSE < vue.get_devices:")
+    _log("[Emporia API] RESPONSE < vue.get_devices:")
     for device in devices:
-        print(
+        _log(
             " - Device GID: {gid}, Name: {name}, Channels: {count}".format(
                 gid=device.device_gid,
                 name=device.device_name,
@@ -150,7 +157,7 @@ def log_devices(devices) -> None:
         )
         if hasattr(device, "channels"):
             for channel in device.channels:
-                print(
+                _log(
                     f"    - Channel Num: {channel.channel_num}, "
                     f"Name: {channel.name}"
                 )
@@ -158,13 +165,13 @@ def log_devices(devices) -> None:
 
 def log_usage_recursive(usage_dict, info, depth=0, first_call=True):
     if first_call:
-        print("[Emporia API] RESPONSE < vue.get_device_list_usage:")
+        _log("[Emporia API] RESPONSE < vue.get_device_list_usage:")
     for gid, device in usage_dict.items():
         for channelnum, channel in device.channels.items():
             name = channel.name
             if name == "Main":
                 name = info[gid].device_name
-            print("-" * depth, f"{gid} {channelnum:<2} {name:<20} {channel.usage} kW")
+            _log("-" * depth + f" {gid} {channelnum:<2} {name:<20} {channel.usage} kW")
             if channel.nested_devices:
                 log_usage_recursive(channel.nested_devices, info, depth + 1, False)
 
@@ -192,25 +199,25 @@ def log_usage_compact(usage_dict, info):
         "[Emporia API] RESPONSE < vue.get_device_list_usage: "
         f"Total={total_kw:.3f}kW [{devices_str}]"
     )
-    print(log_message[:200])
+    _log(log_message[:200])
 
 
 @emporia_bp.post("/auth")
 def authenticate_with_stored():
     global vue
-    print("[Emporia Auth] Authentication with stored credentials requested")
+    _log("[Emporia Auth] Authentication with stored credentials requested")
 
     username, password = get_configured_credentials()
 
     if not username or not password:
-        print("[Emporia Auth] ✗ No stored credentials available")
+        _log("[Emporia Auth] ✗ No stored credentials available")
         return jsonify({
             "success": False,
             "message": "No stored credentials available",
         }), 401
 
     try:
-        print(
+        _log(
             "[Emporia Auth] Attempting to authenticate with stored credentials "
             f"for {username}..."
         )
@@ -230,7 +237,7 @@ def authenticate_with_stored():
                 SECRET_KEY,
                 algorithm="HS256",
             )
-            print(f"[Emporia Auth] ✓ Authentication successful for {username}")
+            _log(f"[Emporia Auth] ✓ Authentication successful for {username}")
             return jsonify(
                 {
                     "success": True,
@@ -240,7 +247,7 @@ def authenticate_with_stored():
             )
 
         _set_authenticated(None, False)
-        print("[Emporia Auth] ✗ Authentication failed: Invalid credentials")
+        _log("[Emporia Auth] ✗ Authentication failed: Invalid credentials")
         return (
             jsonify(
                 {
@@ -253,7 +260,7 @@ def authenticate_with_stored():
 
     except Exception as exc:
         _set_authenticated(None, False)
-        print(f"[Emporia Auth] ✗ Authentication failed: {exc}")
+        _log(f"[Emporia Auth] ✗ Authentication failed: {exc}")
         return (
             jsonify(
                 {
@@ -313,9 +320,9 @@ def get_devices_endpoint():
 
     except Exception as exc:
         error_message = str(exc)
-        print(f"[Error] Failed to get devices: {error_message}")
+        _log(f"[Error] Failed to get devices: {error_message}")
         if "401" in error_message or "Unauthorized" in error_message or "authentication" in error_message.lower():
-            print(
+            _log(
                 "[Error] Detected Emporia API authentication failure, "
                 "invalidating local auth state"
             )
