@@ -148,6 +148,9 @@ export function UtilityStream({
 }: UtilityStreamProps) {
 	const details = useMemo(() => getStreamDetails(rtspUrl, mjpegUrl), [rtspUrl, mjpegUrl])
 	const savedBoxes = useMemo(() => normaliseSavedBoxes(savedSelections), [savedSelections])
+	
+	// Stream reconnection state - add cache-busting timestamp to force reconnect
+	const [streamKey, setStreamKey] = useState(() => Date.now())
 	const remoteConfigured = selectionConfigured ?? savedBoxes.some(isRectConfigured)
 
 	const [status, setStatus] = useState<'idle' | 'loading' | 'playing' | 'error'>(mjpegUrl ? 'loading' : 'idle')
@@ -222,6 +225,43 @@ export function UtilityStream({
 			setDraftBoxes([null, null])
 		}
 	}, [status, mode])
+
+	// Reconnect stream when page becomes visible (e.g., tablet wakes from sleep)
+	useEffect(() => {
+		if (!mjpegUrl) return
+
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				// Force reconnect by updating the stream key
+				setStreamKey(Date.now())
+				setStatus('loading')
+			}
+		}
+
+		document.addEventListener('visibilitychange', handleVisibilityChange)
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange)
+		}
+	}, [mjpegUrl])
+
+	// Auto-retry on error after a delay
+	useEffect(() => {
+		if (status !== 'error' || !mjpegUrl) return
+
+		const retryTimeout = setTimeout(() => {
+			setStreamKey(Date.now())
+			setStatus('loading')
+		}, 3000) // Retry after 3 seconds
+
+		return () => clearTimeout(retryTimeout)
+	}, [status, mjpegUrl])
+
+	// Compute the actual stream URL with cache-busting parameter
+	const effectiveMjpegUrl = useMemo(() => {
+		if (!mjpegUrl) return null
+		const separator = mjpegUrl.includes('?') ? '&' : '?'
+		return `${mjpegUrl}${separator}_t=${streamKey}`
+	}, [mjpegUrl, streamKey])
 
 	const canSelect = Boolean(mjpegUrl) && status !== 'error' && mode === 'setup'
 	const clamp = (value: number) => Math.min(Math.max(value, 0), 1)
@@ -554,12 +594,12 @@ export function UtilityStream({
 						)}
 						{status === 'error' && shouldShowFullFrame && (
 							<div className="absolute inset-0 flex items-center justify-center bg-background/80 text-sm text-destructive">
-								Failed to load restream. Check backend restreamer.
+								Reconnecting stream…
 							</div>
 						)}
 						<img
 							ref={imageRef}
-							src={mjpegUrl}
+							src={effectiveMjpegUrl ?? undefined}
 							alt={`${title} live stream`}
 							className={`h-full w-full object-cover ${status === 'error' || !shouldShowFullFrame ? 'hidden' : ''}`}
 							onLoad={handleImageLoad}
