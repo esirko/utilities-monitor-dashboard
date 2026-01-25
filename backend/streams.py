@@ -31,6 +31,13 @@ from flask import Blueprint, abort, jsonify, request
 
 VALID_STREAMS = {"gas", "water"}
 
+
+def _log(message: str) -> None:
+    """Print a log message with timestamp."""
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}")
+
+
 _DEFAULT_STATE_PATH = Path(__file__).resolve().parent.parent / "stream_selections.json"
 _STATE_FILE = Path(os.environ.get("STREAM_SELECTIONS_FILE", str(_DEFAULT_STATE_PATH))).resolve()
 
@@ -93,7 +100,7 @@ def _load_persisted_selections() -> Dict[str, List[SelectionRect]]:
                             continue
                     selections[stream] = _normalise_boxes(parsed)
     except Exception as exc:  # pragma: no cover - defensive logging
-        print(f"[Streams] Warning: failed to load persisted selections: {exc}")
+        _log(f"[Streams] Warning: failed to load persisted selections: {exc}")
 
     return selections
 
@@ -108,7 +115,7 @@ def _persist_selections() -> None:
         with _STATE_FILE.open("w", encoding="utf-8") as fh:
             json.dump(payload, fh, indent=2, sort_keys=True)
     except Exception as exc:  # pragma: no cover - defensive logging
-        print(f"[Streams] Warning: failed to persist selections: {exc}")
+        _log(f"[Streams] Warning: failed to persist selections: {exc}")
 
 
 
