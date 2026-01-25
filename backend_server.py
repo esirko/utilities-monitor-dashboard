@@ -62,6 +62,9 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
 
     def generate():
         last_frame_time = time.time()
+        last_log_time = time.time()
+        frame_count = 0
+        print(f"[{stream_name}] Stream started")
         try:
             while True:
                 success, frame = cap.read()
@@ -71,6 +74,14 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
                     time.sleep(0.1)
                     continue
                 last_frame_time = time.time()
+                frame_count += 1
+                
+                # Log every 5 seconds while streaming
+                if time.time() - last_log_time >= 5:
+                    print(f"[{stream_name}] Streaming active ({frame_count} frames)")
+                    last_log_time = time.time()
+                    frame_count = 0
+                
                 if success:
                     analyze_frame(stream_name, frame)
                 success, buffer = cv2.imencode(".jpg", frame)
@@ -81,6 +92,7 @@ def stream_rtsp_as_mjpeg(stream_name: str, rtsp_url: str) -> Response:
                     b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
                 )
         finally:
+            print(f"[{stream_name}] Stream ended")
             cap.release()
 
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
