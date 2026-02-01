@@ -1,13 +1,13 @@
-# README2 - Human-generated notes
+# Personal dev notes
 
-## Python server
+## Use a Codespace
 
-### Using a codespace
+- Advantage: can use `npm run dev`
+- Disadvantage: can't use IP cams
 
 The codespace isn't able to access the IP cams on the home network out of the box. There are [instructions to fix this](https://docs.github.com/en/codespaces/developing-in-a-codespace/connecting-to-a-private-network), but I couldn't get `gh net` to work, probably because it's out of support. I haven't tried the VPN yet.
 
-Copy the `.env.example` file to `.env` and change both 5000 ports to 5001.
-This is because I have conflicts with port 5000 on my mac.
+Use port 5001 in the `.env` file. This is because I have conflicts with port 5000 on my mac.
 
 Here's my `.vscode/launch.json`
 ```json
@@ -32,19 +32,18 @@ Here's my `.vscode/launch.json`
 Then I open `backend_server.py` and hit F5 to launch it in debug mode.
 On the ports tab, port 5001 should forward to port 5001.
 
-### Use the local mac
+Forward port 5002 to 5000 so that the server can think it's on 5000 but we'll actually point the browser at http://localhost:5002 to get around the conflict I have.
 
-This way the python server can access the IP cams. Having done the python virtual environment setup before (from the quickstart guide), do this:
+I couldn't figure out why the `npm run dev` always insisted on using port 5000 instead of even 5173, which it's supposed to use by default. I noticed that doing `npm run preview -- --host` used port 4173, but then you can't debug the typescript.
 
-```bash
-source venv/bin/activate
-python3 backend_server.py
-```
+## Use my local mac
 
-The disadvantage of using my local mac is that there's a port conflict on 5000 that I can't figure out how to resolve (in a codespace I can use port forwarding)... so I haven't been able to do `npm run dev` when devving this way.
+- Advantage: can use IP cams
+- Disadvantage: can't use `npm run dev`
 
+This way the python server can access the IP cams. The disadvantage of using my local mac is that there's a port conflict on 5000 that I can't figure out how to resolve (in a codespace I can use port forwarding)... so I haven't been able to do `npm run dev` when devving this way.
 
-### Debugging just the python backend
+## Debugging just the python backend
 
 If you want to run the python backend and don't care about the frontend, you can use these curl commands in a client terminal.
 
@@ -63,13 +62,6 @@ curl -H "Authorization: Bearer $token" http://localhost:$PORT/api/emporia/realti
 curl -H "Authorization: Bearer $token" "http://localhost:$PORT/api/emporia/history?range=1%20Min"
 ```
 
-### pip install
+## pip install
 
 I guess cv2 and pytesseract are optional here, so they're not in requirements.txt, but I can do `pip install pytesseract`, etc.
-
-## Frontend server
-
-Using a codespace: in a new codespace terminal , if you haven't already done `npm install`, do that... consider deleting `node_packages` and `package-lock.json` first.
-Then `npm run build` and `npm run dev`. On a codespace, forward port 5002 to 5000 so that the server can think it's on 5000 but we'll actually point the browser at http://localhost:5002 to get around the conflict I have.
-
-I couldn't figure out why the `npm run dev` always insisted on using port 5000 instead of even 5173, which it's supposed to use by default. I noticed that doing `npm run preview -- --host` used port 4173, but then you can't debug the typescript.
