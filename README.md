@@ -11,7 +11,7 @@ Real-time utilities and energy monitoring dashboard for the home.
 | 💧 Water | IP camera view of meter | Live feed (future: OCR reading → consumption graph) |
 
 ## Hardware
-- [Emporia Vue hardware](https://www.amazon.com/dp/B0C79PNK84). You clip these on around the wires in your circuit breaker and it reads electricity consumption for each circuit, sends the data to Emporia in the cloud, and then we request the data back.
+- [Emporia Vue hardware](https://www.amazon.com/dp/B0C79PNK84). You clip these on around the wires in your circuit breaker and it reads electricity consumption for each circuit, sends the data to Emporia in the cloud with an [Emporia account](https://web.emporiaenergy.com/), and then we request the data back.
 - IP cameras looking at the gas and water meters. They need to support RTSP. I like the Tapo ones ([Tapo C120](https://www.amazon.com/Tapo-cameras-for-home-security/dp/B0CH45HPZT), [Tapo C113](https://www.amazon.com/Tapo-Indoor-Outdoor-Security-Camera/dp/B0F58PRJXV)). (I've also used Foscam, EZViz, and Wansview for RTSP, but to me Tapo seems fastest so I like Tapo the best.)
 - The web dashboard can then be displayed in a prominent location in the home, triggered to wake on motion. I use the app [Fully Kiosk Browser](https://www.fully-kiosk.com/) with a cheap Android tablet to do the kiosk-y parts. With some work you should also be able to use an iPad and motion detectors and HomeKit, etc.
 
