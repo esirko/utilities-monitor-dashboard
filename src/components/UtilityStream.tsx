@@ -741,11 +741,11 @@ export function UtilityStream({
 				</div>
 			)}
 
-			{(details.message || note || (!restreamAvailable && !mjpegUrl)) && (
+			{((details.message && status !== 'playing') || note || (!restreamAvailable && !mjpegUrl)) && (
 				<Alert>
 					<AlertDescription>
-						{details.message}
-						{details.message && note ? ' ' : ''}
+						{status !== 'playing' && details.message}
+						{status !== 'playing' && details.message && note ? ' ' : ''}
 						{note}
 						{!restreamAvailable && !mjpegUrl ? ' Backend restreaming is disabled or unavailable.' : ''}
 					</AlertDescription>
