@@ -34,9 +34,9 @@ There is a React frontend to do web UX stuff, and a Python backend to do pyemvue
 
 
 
-## �🚀 Quick Start
+## 🚀 Quick Start
 
-### 0. � Prerequisites
+### Prerequisites
 
 - **Node.js 18+** (for frontend)
 - **Python 3.8+** (for backend)
@@ -106,7 +106,7 @@ It will tell you what address it's serving.
 
 [Personal dev notes](personal-dev-notes.md)
 
-## 📄 License
+## License
 
-The Spark Template files and resources from GitHub are licensed under the terms of the MIT license, Copyright GitHub, Inc.
+MIT License. See [LICENSE](./LICENSE).
 
