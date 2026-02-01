@@ -26,6 +26,7 @@ dist-ssr
 
 venv/
 .env
+stream_selections.json
 **/agent-eval-report*
 packages
 pids
