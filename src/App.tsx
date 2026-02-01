@@ -437,7 +437,7 @@ function App() {
             mjpegUrl={stream?.mjpeg ?? null}
             restreamAvailable={stream?.restreamAvailable}
             title={`${title} stream`}
-            note={stream?.mjpeg
+            note={stream?.mjpeg && !stream?.selectionConfigured
               ? 'Draw two regions on the video, then confirm to save. Double-click the active region to clear it.'
               : (!stream?.restreamAvailable
                 ? 'Backend restreaming is disabled. Install the restream dependencies or expose an MJPEG/WebRTC feed for browser playback.'
