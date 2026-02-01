@@ -1,5 +1,7 @@
 # Personal dev notes
 
+![I made this](images/i-made-this.png)
+
 ## Use a Codespace
 
 - Advantage: can use `npm run dev`

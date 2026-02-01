@@ -2,6 +2,8 @@
 
 Real-time utilities and energy monitoring dashboard for the home.
 
+![Typical view of dashboard](images/utilities-monitor-dashboard-screenshot.png)
+
 ## Data Sources & Visualizations
 
 | Utility | Data Source | Visualization |
@@ -12,21 +14,27 @@ Real-time utilities and energy monitoring dashboard for the home.
 
 ## Hardware
 - [Emporia Vue hardware](https://www.amazon.com/dp/B0C79PNK84). You clip these on around the wires in your circuit breaker and it reads electricity consumption for each circuit, sends the data to Emporia in the cloud with an [Emporia account](https://web.emporiaenergy.com/), and then we request the data back.
-- IP cameras looking at the gas and water meters. They need to support RTSP. I like the Tapo ones ([Tapo C120](https://www.amazon.com/Tapo-cameras-for-home-security/dp/B0CH45HPZT), [Tapo C113](https://www.amazon.com/Tapo-Indoor-Outdoor-Security-Camera/dp/B0F58PRJXV)). (I've also used Foscam, EZViz, and Wansview for RTSP, but to me Tapo seems fastest so I like Tapo the best.)
-- [Diopter lenses](https://www.amazon.com/Vivitar-Close-Up-Macro-Filter-Pouch/dp/B004DRCEDW) are pretty important to get a good view of those small gauges. I also 3d-printed something to hold the lens in front of the camera.
+- IP cameras looking at the gas and water meters. They need to support RTSP. I like the Tapo ones ([Tapo C120](https://www.amazon.com/Tapo-cameras-for-home-security/dp/B0CH45HPZT), [Tapo C113](https://www.amazon.com/Tapo-Indoor-Outdoor-Security-Camera/dp/B0F58PRJXV)). (I've also used Foscam, EZViz, and Wansview for RTSP, but Tapo seems fastest so I like Tapo the best.)
+- [Diopter lenses](https://www.amazon.com/Vivitar-Close-Up-Macro-Filter-Pouch/dp/B004DRCEDW) are pretty important to get a good view of those small gauges in focus. I also 3d-printed something to hold the lens in front of the camera. (Link to come)
 - The web dashboard can then be displayed in a prominent location in the home, triggered to wake on motion. I use the app [Fully Kiosk Browser](https://www.fully-kiosk.com/) with a cheap Android tablet to do the kiosk-y parts. With some work you should also be able to use an iPad and motion detectors and HomeKit, etc.
 
 ## Some pictures of my setup!
 
-![Typical view of dashboard]()
 
-![Emporia Vue monitors on my circuit breaker]()
+Emporia Vue monitors on my circuit breaker
+> ![Emporia Vue monitors on my circuit breaker](images/circuit-breaker-box-with-emporia.jpg)
 
-![Tapo C113 looking at my water meter]()
+Tapo C113 looking at my water meter
+> ![Tapo C113 looking at my water meter](images/water-meter-setup.jpg)
 
-![Tapo C120 looking at my gas meter]()
+Closeup of diopter lens mounted to IP Cam
+> ![Closeup of diopter lens mounted to IP Cam](images/water-camera-lens-closeup.jpg)
 
-![Tablet running as a kiosk at home]()
+Tapo C120 looking at my gas meter (after a snow storm - that's a tripod under the snow and it's attached with another 3d printed piece)
+> ![Tapo C120 looking at my gas meter](images/gas-meter-setup-in-snow.jpg)
+
+Tablet running as a kiosk at home. With the [Fully Kiosk](https://www.fully-kiosk.com) app, the tablet's native camera actually acts as a motion detector. When someone walks by, the tablet wakes up and the web app becomes active. It goes to sleep after a few minutes of no motion.
+> ![Tablet running as a kiosk at home](images/kiosk.jpg)
 
 
 ## 🏗️ Architecture
