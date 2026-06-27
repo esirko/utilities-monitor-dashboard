@@ -24,14 +24,14 @@ Real-time utilities and energy monitoring dashboard for the home.
 Emporia Vue monitors on my circuit breaker
 > ![Emporia Vue monitors on my circuit breaker](images/circuit-breaker-box-with-emporia.jpg)
 
-Tapo C113 looking at my water meter
+Tapo C113 looking at my water meter ([3d printed mount](https://github.com/esirko/openscad-models/tree/main/actually%20useful%20or%20otherwise%20interesting#2025-11-28-pole-hugger-for-camera-mount-in-basement))
 > ![Tapo C113 looking at my water meter](images/water-meter-setup.jpg)
 
-Closeup of diopter lens mounted to IP Cam
+Closeup of diopter lens mounted to IP Cam with [3d-printed thing](https://github.com/esirko/openscad-models/tree/main/actually%20useful%20or%20otherwise%20interesting#2025-12-05-lens-clamps-for-ip-cams)
 > ![Closeup of diopter lens mounted to IP Cam](images/water-camera-lens-closeup.jpg)
 
-Tapo C120 looking at my gas meter (after a snow storm - that's a tripod under the snow and it's attached with another 3d printed piece)
-> ![Tapo C120 looking at my gas meter](images/gas-meter-setup-in-snow.jpg)
+Tapo C120 looking at my gas meter with a [3d printed piece](https://github.com/esirko/openscad-models/tree/main/actually%20useful%20or%20otherwise%20interesting#2025-11-27-tripod-mount-shoe)
+> ![Tapo C120 looking at my gas meter](images/gas-meter-setup-without-snow.jpg)
 
 Tablet running as a kiosk at home. With the [Fully Kiosk](https://www.fully-kiosk.com) app, the tablet's native camera actually acts as a motion detector. When someone walks by, the tablet wakes up and the web app becomes active. It goes to sleep after a few minutes of no motion.
 > ![Tablet running as a kiosk at home](images/kiosk.jpg)
